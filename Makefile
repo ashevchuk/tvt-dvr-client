@@ -15,8 +15,25 @@ GUI_PKGS := raylib libavcodec libswscale libavutil
 CLIENT_OBJS := $(patsubst src/client/%.cpp,build/client/%.o,$(wildcard src/client/*.cpp))
 TOOLS := bin/probe bin/playback_probe
 
-.PHONY: all clean
+PROTO_OBJS := $(patsubst src/proto/%.cpp,build/proto/%.o,$(wildcard src/proto/*.cpp))
+
+.PHONY: all clean test protocheck
 all: bin/tvt-dvr-client $(TOOLS)
+
+# The protocol layer needs neither the vendor SDK nor any library besides the C++ runtime.
+test: bin/test_wire
+	bin/test_wire
+
+protocheck: bin/protocheck
+
+bin/test_wire: tests/test_wire.cpp build/proto/wire.o | bin
+	$(CXX) $(CXXFLAGS) -Isrc $^ -o $@
+
+bin/protocheck: src/tools/protocheck.cpp $(PROTO_OBJS) | bin
+	$(CXX) $(CXXFLAGS) -Isrc $^ -o $@
+
+build/proto/%.o: src/proto/%.cpp | build/proto
+	$(CXX) $(CXXFLAGS) -Isrc -c $< -o $@
 
 bin/tvt-dvr-client: $(CLIENT_OBJS) | bin
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(SDK_LINK) $$(pkg-config --libs $(GUI_PKGS))
@@ -27,12 +44,12 @@ build/client/%.o: src/client/%.cpp | build/client
 bin/%: src/tools/%.cpp | bin
 	$(CXX) $(CXXFLAGS) -I"$(SDK_DIR)/include" $< -o $@ $(SDK_LINK)
 
-bin build/client:
+bin build/client build/proto:
 	mkdir -p $@
 
 clean:
 	rm -rf bin build
 
--include $(CLIENT_OBJS:.o=.d)
+-include $(CLIENT_OBJS:.o=.d) $(PROTO_OBJS:.o=.d)
 
 -include $(wildcard bin/*.d)
