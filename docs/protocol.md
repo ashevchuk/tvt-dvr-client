@@ -142,8 +142,8 @@ Other words (w7, w8, w10) were constant or not understood.
 
 - **Video** (kind 1): Annex-B H.264, SPS/PPS inside key frames; consecutive frames are 40 ms
   apart at 25 fps. The same frames the SDK hands to its callback.
-- **Audio** (kind 2): 840 bytes, the same 4-byte wrapper and IMA ADPCM blocks described in
-  [device-notes.md](device-notes.md); 5 per second.
+- **Audio** (kind 2): 840 bytes, five 168-byte units of a 4-byte header and a 164-byte IMA ADPCM
+  block, as described in [device-notes.md](device-notes.md); 5 messages per second.
 - **Formats** (kinds 3 and 4): 40-byte video and 18-byte `WAVEFORMATEX`-style audio descriptions
   sent at the start.
 

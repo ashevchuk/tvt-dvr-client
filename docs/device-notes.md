@@ -20,10 +20,14 @@ Observations from a 16-channel DVR (firmware `3.3.0.P-3531-00`, 4 audio inputs) 
 - libavcodec logs `SEI type 18 ... truncated` on nearly every frame; the payload is a vendor
   extension and the picture is unaffected.
 - Audio arrives unprompted; `NET_SDK_OpenSound` only controls local playback through ALSA.
-  Each audio frame is a 4-byte wrapper (`00 01 52 00`) followed by 840 bytes, which are five
-  IMA ADPCM blocks of 168 bytes (8 kHz, mono). The format frame claims `nBlockAlign=1`; the
-  168-byte block size was found from the data. The device sends audio in 200 ms bursts, so a
-  ~300 ms jitter buffer is needed.
+  The audio data is a series of 168-byte units. Each unit is a 4-byte header `00 01 52 00`
+  (`0x52` is 82 words, the length of what follows) and one IMA ADPCM block of 164 bytes: a
+  4-byte block header (predictor, step index, padding) and 160 bytes of data, 321 samples at
+  8 kHz mono. A message holds five units, 200 ms. The format frame claims `nBlockAlign=1`, which
+  is wrong. The SDK's frame callback delivers the same units followed by 4 more bytes.
+  Decoding 168-byte blocks that start after the unit header looks right but reads the next
+  unit's header as 8 extra samples per block; drop the 4-byte header and decode 164-byte blocks.
+  The device sends audio in 200 ms bursts, so a ~300 ms jitter buffer is needed.
 - Only the first four channels have audio inputs.
 
 ## SDK behaviour worth knowing
