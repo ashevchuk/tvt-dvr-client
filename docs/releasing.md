@@ -15,8 +15,7 @@ machine, so the file in a release is the one built from the tagged commit on a c
 
 3. The workflow runs the unit tests, builds the AppImage in the container described in
    `packaging/appimage/`, checks it (checksum, no missing libraries, glibc 2.28 at most) and
-   creates the GitHub release with the AppImage, its SHA-256 and the FFmpeg source. Versions
-   starting with `0.` are marked as pre-releases.
+   creates the GitHub release with the AppImage, its SHA-256 and the FFmpeg source.
 
 The workflow can also be started by hand from the Actions tab or with
 `gh workflow run release.yml`. That only builds the AppImage and keeps it as a workflow artifact

@@ -1,4 +1,4 @@
-Pre-release build of the AppImage, made by the release workflow from the tagged commit.
+Build of the AppImage, made by the release workflow from the tagged commit.
 
 ## Run
 

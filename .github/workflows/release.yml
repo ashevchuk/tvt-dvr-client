@@ -102,8 +102,6 @@ jobs:
           version="${TAG#v}"
           sum=$(cut -d' ' -f1 dist/tvt-dvr-client-"$version"-x86_64.AppImage.sha256)
           sed -e "s/@VERSION@/$version/g" -e "s/@SHA256@/$sum/g" packaging/appimage/release-notes.md > notes.md
-          flags=()
-          case "$version" in 0.*) flags+=(--prerelease) ;; esac
-          gh release create "$TAG" "${flags[@]}" --verify-tag --title "$TAG" --notes-file notes.md \
+          gh release create "$TAG" --verify-tag --title "$TAG" --notes-file notes.md \
               dist/tvt-dvr-client-"$version"-x86_64.AppImage dist/tvt-dvr-client-"$version"-x86_64.AppImage.sha256 \
               dist/ffmpeg-*.tar.xz dist/ffmpeg-*.tar.xz.asc
