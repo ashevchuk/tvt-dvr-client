@@ -1,11 +1,9 @@
 #pragma once
 
 #include "common.h"
+#include "device/device.h"
 
-struct Segment {
-    time_t start;
-    time_t stop;
-};
+using Segment = dvr::Segment;
 
 typedef std::shared_ptr<const std::vector<Segment>> SegmentList;
 

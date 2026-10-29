@@ -21,7 +21,7 @@ struct StreamRequest {
 };
 
 // One connection to one camera, live or recorded:
-// SDK callback -> queue -> decoder thread -> RGBA frame.
+// device callback -> queue -> decoder thread -> RGBA frame.
 class Stream {
 public:
     const int camera;
@@ -43,35 +43,18 @@ public:
         }
         decoder_ = std::thread([this] { decode_loop(); });
 
-        std::lock_guard<std::mutex> lock(g_sdk_mutex);
-        if (playback) {
-            DD_TIME start = to_dd_time(req.start);
-            DD_TIME stop = to_dd_time(req.stop);
-            LONG channels[1] = {camera};
-            handle_ = NET_SDK_PlayBackByTime(g_uid, channels, 1, &start, &stop, nullptr);
-            if (handle_ >= 0)
-                NET_SDK_SetPlayDataCallBack(handle_, &Stream::on_frame, this);
-        } else {
-            NET_SDK_CLIENTINFO ci;
-            memset(&ci, 0, sizeof(ci));
-            ci.lChannel = camera;
-            ci.streamType = main_stream ? NET_SDK_MAIN_STREAM : NET_SDK_SUB_STREAM;
-            ci.bNoDecode = 1;
-            handle_ = NET_SDK_LivePlay(g_uid, &ci, &Stream::on_frame, this);
-        }
-        if (handle_ < 0)
-            fprintf(stderr, "%s camera %d failed, last error %u\n", playback ? "PlayBack" : "LivePlay", camera + 1, NET_SDK_GetLastError());
+        auto handler = [this](const dvr::Frame &f) { handle_frame(f); };
+        if (playback)
+            session_ = g_device->open_playback(camera, req.start, req.stop, handler);
+        else
+            session_ = g_device->open_live(camera, main_stream, handler);
+        if (!session_)
+            fprintf(stderr, "cannot open the %s of camera %d\n", playback ? "playback" : "live stream", camera + 1);
     }
 
     ~Stream()
     {
-        if (handle_ >= 0) {
-            std::lock_guard<std::mutex> lock(g_sdk_mutex);
-            if (playback)
-                NET_SDK_StopPlayBack(handle_);
-            else
-                NET_SDK_StopLivePlay(handle_);
-        }
+        session_.reset();       // the device delivers no more frames after this
         {
             std::lock_guard<std::mutex> lock(queue_mutex_);
             stop_ = true;
@@ -84,7 +67,7 @@ public:
             UnloadTexture(texture_);
     }
 
-    bool connected() const { return handle_ >= 0; }
+    bool connected() const { return session_ && session_->ok(); }
     int width() const { return width_; }
     int height() const { return height_; }
     bool has_frame() const { return displayed_time_us_ != 0; }
@@ -99,17 +82,19 @@ public:
 
     void set_paused(bool paused)
     {
-        if (control(paused ? NET_SDK_PLAYCTRL_PAUSE : NET_SDK_PLAYCTRL_RESUME, 0))
-            paused_ = paused;
+        if (!session_)
+            return;
+        session_->set_paused(paused);
+        paused_ = paused;
     }
 
     // Speed is 1, 2 or 4; these are the multiples verified against the device.
     void set_speed(int speed)
     {
-        bool ok = speed == 1 ? control(NET_SDK_PLAYCTRL_NORMAL, 0)
-                             : control(NET_SDK_PLAYCTRL_FF, speed == 2 ? NET_SDK_RPB_SPEED_2X : NET_SDK_RPB_SPEED_4X);
-        if (ok)
-            speed_ = speed;
+        if (!session_)
+            return;
+        session_->set_speed(speed);
+        speed_ = speed;
     }
 
     // Main thread only: uploads the newest decoded frame, if any.
@@ -132,49 +117,35 @@ public:
     const Texture2D &texture() const { return texture_; }
 
 private:
-    static void on_frame(POINTERHANDLE, NET_SDK_FRAME_INFO info, BYTE *data, void *user)
+    void handle_frame(const dvr::Frame &f)
     {
-        static_cast<Stream *>(user)->handle_frame(info, data);
-    }
-
-    bool control(DWORD code, DWORD value)
-    {
-        if (handle_ < 0)
-            return false;
-        std::lock_guard<std::mutex> lock(g_sdk_mutex);
-        DWORD out = 0;
-        return NET_SDK_PlayBackControl(handle_, code, value, &out);
-    }
-
-    void handle_frame(const NET_SDK_FRAME_INFO &info, const BYTE *data)
-    {
-        if (info.frameType == DD_FRAME_TYPE_VIDEO) {
-            push_video(info, data);
-        } else if (info.frameType == DD_FRAME_TYPE_AUDIO) {
-            bool wanted = camera == g_audio_camera && audio_allowed_ && static_cast<uint64_t>(info.time) >= min_display_us_;
-            if (wanted && info.length > AUDIO_WRAPPER_BYTES)
-                g_audio->feed(data + AUDIO_WRAPPER_BYTES, info.length - AUDIO_WRAPPER_BYTES);
+        if (f.kind == dvr::Frame::Kind::Video) {
+            push_video(f);
+        } else if (f.kind == dvr::Frame::Kind::Audio) {
+            bool wanted = camera == g_audio_camera && audio_allowed_ && f.time_us >= min_display_us_;
+            if (wanted)
+                g_audio->feed(f.data, f.size);
         }
     }
 
-    void push_video(const NET_SDK_FRAME_INFO &info, const BYTE *data)
+    void push_video(const dvr::Frame &f)
     {
         std::lock_guard<std::mutex> lock(queue_mutex_);
-        if (wait_key_ && !info.keyFrame)
+        if (wait_key_ && !f.key)
             return;
         wait_key_ = false;
         if (queue_.size() >= MAX_QUEUED_PACKETS) {
             queue_.clear();
-            if (!info.keyFrame) {
+            if (!f.key) {
                 wait_key_ = true;
                 return;
             }
         }
         Packet p;
-        p.size = info.length;
-        p.time_us = info.time;
-        p.data.assign(data, data + info.length);
-        p.data.resize(info.length + AV_INPUT_BUFFER_PADDING_SIZE, 0);
+        p.size = f.size;
+        p.time_us = f.time_us;
+        p.data.assign(f.data, f.data + f.size);
+        p.data.resize(f.size + AV_INPUT_BUFFER_PADDING_SIZE, 0);
         queue_.push_back(std::move(p));
         queue_cv_.notify_one();
     }
@@ -223,7 +194,7 @@ private:
         displayed_time_us_ = time_us;
     }
 
-    POINTERHANDLE handle_ = -1;
+    std::unique_ptr<dvr::MediaSession> session_;
     AVCodecContext *ctx_;
     SwsContext *sws_ = nullptr;
     std::thread decoder_;

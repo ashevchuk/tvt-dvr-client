@@ -5,7 +5,7 @@
 #include "segments.h"
 
 struct Download {
-    POINTERHANDLE handle = -1;
+    std::unique_ptr<dvr::Download> handle;
     bool active = false;
     int progress = 0;
     std::string message;

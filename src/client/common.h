@@ -22,10 +22,7 @@
 #include <thread>
 #include <vector>
 
-// raylib's TraceLogLevel::LOG_ALL collides with an SDK enumerator.
-#define LOG_ALL RAYLIB_LOG_ALL
 #include <raylib.h>
-#undef LOG_ALL
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -33,8 +30,6 @@ extern "C" {
 #include <libavutil/log.h>
 #include <libswscale/swscale.h>
 }
-
-#include "DVR_NET_SDK.h"
 
 static const int MAX_TILES = 16;
 

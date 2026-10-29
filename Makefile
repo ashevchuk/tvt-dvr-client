@@ -1,55 +1,65 @@
-# The vendor SDK is not part of this repository; see vendor/README.md.
+# The default build needs no proprietary software. SDK=1 adds a second backend on top of the
+# vendor SDK, which is not part of this repository; see vendor/README.md.
+SDK ?= 0
 SDK_DIR ?= $(CURDIR)/vendor/sdk
 SDK_LIB_DIR := $(SDK_DIR)/Linux/bin
 
 CXX ?= g++
 CXXFLAGS ?= -O2
-CXXFLAGS += -std=c++17 -Wall -Wextra -pthread -MMD -MP
+override CXXFLAGS += -std=c++17 -Wall -Wextra -pthread -MMD -MP -Isrc
 
-# libasound.so is the copy shipped with the SDK; the system one lacks the symbols it needs.
-SDK_LDLIBS := -l:libdvrnetsdk.so -l:libasound.so
-SDK_LINK = -L"$(SDK_LIB_DIR)" $(SDK_LDLIBS) "-Wl,-rpath,$(SDK_LIB_DIR)"
+MEDIA_PKGS := libavformat libavcodec libswscale libavutil
+GUI_PKGS := raylib $(MEDIA_PKGS)
 
-GUI_PKGS := raylib libavcodec libswscale libavutil
+OBJ := build/sdk$(SDK)
 
-CLIENT_OBJS := $(patsubst src/client/%.cpp,build/client/%.o,$(wildcard src/client/*.cpp))
-TOOLS := bin/probe bin/playback_probe
+PROTO_OBJS := $(OBJ)/proto/wire.o $(OBJ)/proto/connection.o
+MEDIA_OBJS := $(OBJ)/media/ima_decoder.o
+DEVICE_OBJS := $(OBJ)/device/native_device.o $(OBJ)/device/recording_writer.o
+CLIENT_OBJS := $(patsubst src/client/%.cpp,$(OBJ)/client/%.o,$(wildcard src/client/*.cpp))
+BINARIES := bin/tvt-dvr-client bin/devicecheck bin/protocheck
 
-PROTO_OBJS := $(patsubst src/proto/%.cpp,build/proto/%.o,$(wildcard src/proto/*.cpp))
+ifeq ($(SDK),1)
+override CXXFLAGS += -DDVR_WITH_SDK -I"$(SDK_DIR)/include"
+SDK_LINK := -L"$(SDK_LIB_DIR)" -l:libdvrnetsdk.so -l:libasound.so "-Wl,-rpath,$(SDK_LIB_DIR)"
+DEVICE_OBJS += $(OBJ)/device/sdk_device.o
+BINARIES += bin/probe bin/playback_probe
+endif
 
-.PHONY: all clean test protocheck
-all: bin/tvt-dvr-client $(TOOLS)
+.PHONY: all test clean
+all: $(BINARIES)
 
-# The protocol layer needs neither the vendor SDK nor any library besides the C++ runtime.
-test: bin/test_wire
+test: bin/test_wire bin/test_ima
 	bin/test_wire
+	bin/test_ima
 
-protocheck: bin/protocheck
-
-bin/test_wire: tests/test_wire.cpp build/proto/wire.o | bin
-	$(CXX) $(CXXFLAGS) -Isrc $^ -o $@
-
-bin/protocheck: src/tools/protocheck.cpp $(PROTO_OBJS) | bin
-	$(CXX) $(CXXFLAGS) -Isrc $^ -o $@
-
-build/proto/%.o: src/proto/%.cpp | build/proto
-	$(CXX) $(CXXFLAGS) -Isrc -c $< -o $@
-
-bin/tvt-dvr-client: $(CLIENT_OBJS) | bin
+bin/tvt-dvr-client: $(CLIENT_OBJS) $(DEVICE_OBJS) $(PROTO_OBJS) $(MEDIA_OBJS) | bin
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(SDK_LINK) $$(pkg-config --libs $(GUI_PKGS))
 
-build/client/%.o: src/client/%.cpp | build/client
-	$(CXX) $(CXXFLAGS) $$(pkg-config --cflags $(GUI_PKGS)) -I"$(SDK_DIR)/include" -c $< -o $@
+bin/devicecheck: src/tools/devicecheck.cpp $(DEVICE_OBJS) $(PROTO_OBJS) $(MEDIA_OBJS) | bin
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(SDK_LINK) $$(pkg-config --cflags --libs $(MEDIA_PKGS))
 
-bin/%: src/tools/%.cpp | bin
-	$(CXX) $(CXXFLAGS) -I"$(SDK_DIR)/include" $< -o $@ $(SDK_LINK)
+bin/protocheck: src/tools/protocheck.cpp $(PROTO_OBJS) | bin
+	$(CXX) $(CXXFLAGS) $^ -o $@
 
-bin build/client build/proto:
+bin/test_wire: tests/test_wire.cpp $(OBJ)/proto/wire.o | bin
+	$(CXX) $(CXXFLAGS) $^ -o $@
+
+bin/test_ima: tests/test_ima.cpp $(MEDIA_OBJS) | bin
+	$(CXX) $(CXXFLAGS) $^ -o $@ $$(pkg-config --cflags --libs libavcodec libavutil)
+
+# The experiments that talk to the SDK directly (only with SDK=1).
+bin/probe bin/playback_probe: bin/%: src/tools/%.cpp | bin
+	$(CXX) $(CXXFLAGS) $< -o $@ $(SDK_LINK)
+
+$(OBJ)/%.o: src/%.cpp
+	@mkdir -p $(@D)
+	$(CXX) $(CXXFLAGS) $$(pkg-config --cflags $(GUI_PKGS)) -c $< -o $@
+
+bin:
 	mkdir -p $@
 
 clean:
 	rm -rf bin build
 
--include $(CLIENT_OBJS:.o=.d) $(PROTO_OBJS:.o=.d)
-
--include $(wildcard bin/*.d)
+-include $(shell find build -name '*.d' 2>/dev/null)

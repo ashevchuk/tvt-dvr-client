@@ -6,31 +6,13 @@ static const double DRIFT_LIMIT_SECONDS = 3.0;
 
 static const double DRIFT_HOLDOFF_SECONDS = 4.0;
 
-static const int DOWNLOAD_NETWORK_ERROR = 200;
-
 void load_recorded_days(Playback &pb)
 {
-    std::lock_guard<std::mutex> lock(g_sdk_mutex);
-    POINTERHANDLE handle = NET_SDK_FindRecDate(g_uid);
-    if (handle < 0) {
-        fprintf(stderr, "FindRecDate failed, last error %u\n", NET_SDK_GetLastError());
-        return;
+    for (time_t day : g_device->recorded_days()) {
+        tm local;
+        localtime_r(&day, &local);
+        pb.recorded_days.insert(day_key(local.tm_year + 1900, local.tm_mon + 1, local.tm_mday));
     }
-    int waited = 0;
-    for (;;) {
-        DD_DATE d;
-        LONG rc = NET_SDK_FindNextRecDate(handle, &d);
-        if (rc == NET_SDK_FILE_SUCCESS) {
-            pb.recorded_days.insert(day_key(d.year, d.month, d.mday));
-            waited = 0;
-        } else if (rc == NET_SDK_TRY_LATER && waited < FIND_TIMEOUT_MS) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(FIND_RETRY_MS));
-            waited += FIND_RETRY_MS;
-        } else {
-            break;
-        }
-    }
-    NET_SDK_FindRecDateClose(handle);
 }
 
 void select_day(Playback &pb, int year, int month, int day)
@@ -142,15 +124,12 @@ void start_download(Playback &pb)
     char name[96];
     int n = snprintf(name, sizeof(name), "ch%02d_", camera + 1);
     n += strftime(name + n, sizeof(name) - n, "%Y%m%d_%H%M%S-", &a);
-    strftime(name + n, sizeof(name) - n, "%H%M%S.avi", &b);
-    std::string path = download_directory() + "/" + name;
+    n += strftime(name + n, sizeof(name) - n, "%H%M%S", &b);
+    snprintf(name + n, sizeof(name) - n, ".%s", g_device->recording_extension());
 
-    DD_TIME from = to_dd_time(pb.selection_a);
-    DD_TIME to = to_dd_time(pb.selection_b);
-    std::lock_guard<std::mutex> lock(g_sdk_mutex);
-    dl.handle = NET_SDK_GetFileByTimeEx(g_uid, camera, &from, &to, const_cast<char *>(path.c_str()), FALSE);
-    if (dl.handle < 0) {
-        dl.message = "Download failed to start, error " + std::to_string(NET_SDK_GetLastError());
+    dl.handle = g_device->download(camera, pb.selection_a, pb.selection_b, download_directory() + "/" + name);
+    if (!dl.handle) {
+        dl.message = "Download failed to start";
         return;
     }
     dl.active = true;
@@ -162,29 +141,18 @@ void poll_download(Download &dl)
 {
     if (!dl.active)
         return;
-    std::lock_guard<std::mutex> lock(g_sdk_mutex);
-    int pos = NET_SDK_GetDownloadPos(dl.handle);
+    int pos = dl.handle->progress();
     if (pos >= 0 && pos < 100) {
         dl.progress = pos;
         return;
     }
-    NET_SDK_StopGetFile(dl.handle);
+    dl.message = pos == 100 ? dl.message + " - saved" : "Download failed: " + dl.handle->error();
     dl.active = false;
-    dl.handle = -1;
-    if (pos == 100) {
-        dl.message += " - saved";
-    } else {
-        dl.message = pos == DOWNLOAD_NETWORK_ERROR ? "Download failed: network error" : "Download failed";
-    }
+    dl.handle.reset();
 }
 
 void cancel_download(Download &dl)
 {
-    if (!dl.active)
-        return;
-    std::lock_guard<std::mutex> lock(g_sdk_mutex);
-    NET_SDK_StopGetFile(dl.handle);
+    dl.handle.reset();
     dl.active = false;
 }
-
-// ---- drawing -------------------------------------------------------------------------------
