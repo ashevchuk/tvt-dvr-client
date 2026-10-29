@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=TVT DVR Client
+Comment=Live view, playback and download for TVT-based network DVRs
+Exec=tvt-dvr-client
+Icon=tvt-dvr-client
+Categories=AudioVideo;Video;
+Terminal=true

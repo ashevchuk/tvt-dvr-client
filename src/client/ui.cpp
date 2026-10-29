@@ -318,7 +318,7 @@ static void draw_playback_panel(App &app)
         status += TextFormat("%s %d%%", pb.download.message.c_str(), pb.download.progress);
     else
         status += pb.download.message;
-    DrawText(status.c_str(), (int)x + 324 + 110, (int)y + 14, 14, GRAY);
+    DrawText(status.c_str(), (int)x + 324 + 164, (int)y + 14, 14, GRAY);
 
     draw_timeline(pb, y + 44);
 }

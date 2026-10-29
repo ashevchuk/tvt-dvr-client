@@ -8,6 +8,7 @@ CXX ?= g++
 CXXFLAGS ?= -O2
 override CXXFLAGS += -std=c++17 -Wall -Wextra -pthread -MMD -MP -Isrc
 
+PKG_CONFIG_FLAGS ?=
 MEDIA_PKGS := libavformat libavcodec libswscale libavutil
 GUI_PKGS := raylib $(MEDIA_PKGS)
 
@@ -34,10 +35,10 @@ test: bin/test_wire bin/test_ima
 	bin/test_ima
 
 bin/tvt-dvr-client: $(CLIENT_OBJS) $(DEVICE_OBJS) $(PROTO_OBJS) $(MEDIA_OBJS) | bin
-	$(CXX) $(CXXFLAGS) $^ -o $@ $(SDK_LINK) $$(pkg-config --libs $(GUI_PKGS))
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) $(SDK_LINK) $$(pkg-config $(PKG_CONFIG_FLAGS) --libs $(GUI_PKGS)) $(LDLIBS)
 
 bin/devicecheck: src/tools/devicecheck.cpp $(DEVICE_OBJS) $(PROTO_OBJS) $(MEDIA_OBJS) | bin
-	$(CXX) $(CXXFLAGS) $^ -o $@ $(SDK_LINK) $$(pkg-config --cflags --libs $(MEDIA_PKGS))
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) $(SDK_LINK) $$(pkg-config $(PKG_CONFIG_FLAGS) --cflags --libs $(MEDIA_PKGS))
 
 bin/protocheck: src/tools/protocheck.cpp $(PROTO_OBJS) | bin
 	$(CXX) $(CXXFLAGS) $^ -o $@

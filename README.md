@@ -77,6 +77,32 @@ export DVR_USER=... DVR_PASS=...
 | Download button | saves the selected period of the selected camera |
 | `Esc` | quit |
 
+## AppImage
+
+A self-contained build for x86-64 Linux with glibc 2.28 or newer (Debian 10, Ubuntu 18.10, RHEL 8
+and later) is attached to each release:
+
+```sh
+chmod +x tvt-dvr-client-*-x86_64.AppImage
+DVR_USER=... DVR_PASS=... ./tvt-dvr-client-*-x86_64.AppImage <host> [port]
+```
+
+It carries a minimal LGPL build of FFmpeg and a static raylib, so the only things it needs from
+the system are the X11 client libraries, OpenGL and a sound server or ALSA. Running it directly
+needs FUSE 2; without it, start it with `--appimage-extract-and-run`. The client takes the host
+and the credentials from the command line and the environment, so launching it from a menu
+entry does nothing useful yet.
+
+To build it yourself (Docker, network access):
+
+```sh
+packaging/appimage/build-appimage.sh 0.1.0      # from a clean checkout; writes to dist/
+```
+
+The versions of FFmpeg, raylib and the packaging tools are pinned by SHA-256 in
+`packaging/appimage/Dockerfile`. The licences of the bundled libraries are in
+`packaging/appimage/THIRD-PARTY-NOTICES.md`.
+
 ## Checking a device
 
 ```sh
