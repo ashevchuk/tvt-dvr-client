@@ -17,6 +17,7 @@ static const int PLAYBACK_LAYOUTS[] = {1, 4};
 // Sub streams (352x288) are the main stream's 928x576 field of view squeezed horizontally.
 static const float DISPLAY_ASPECT = 928.0f / 576.0f;
 static const double MIN_TIMELINE_SPAN = 120;
+static const double DOUBLE_CLICK_SECONDS = 0.4;
 static const Color RECORDED = {40, 150, 60, 255};
 static const Color SELECTION = {255, 150, 30, 110};
 static const Color CURSOR = {255, 255, 255, 255};
@@ -76,6 +77,7 @@ static void draw_camera_list(const App &app, Grid &grid, bool &changed)
             DrawRectangleRec(row, ROW_HIGHLIGHT);
         DrawText(TextFormat("Camera %02d%s", c + 1, c < g_audio_inputs ? "  [a]" : ""), 14, y + 5, 16, current ? ACCENT : LIGHTGRAY);
         if (CheckCollisionPointRec(GetMousePosition(), row) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+            grid.expansion.forget();
             grid.camera[grid.selected] = c;
             changed = true;
         }
@@ -97,17 +99,28 @@ static void draw_tabs(App &app)
     DrawText(name, (int)devices_x - 12 - MeasureText(name, 16), 9, 16, GRAY);
 }
 
-static void handle_tile_click(const App &app, Grid &grid)
+// A double click shows the tile's camera alone, or restores the grid it was expanded from.
+// Returns true when the layout changed and the streams have to be rebuilt.
+static bool handle_tile_click(const App &app, Grid &grid)
 {
+    static double last_click_time = 0;
+    static int last_click_tile = -1;
     if (!IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
-        return;
+        return false;
     for (int i = 0; i < grid.layout; i++) {
-        if (CheckCollisionPointRec(GetMousePosition(), tile_rect(app, grid, i))) {
-            grid.selected = i;
-            select_audio(grid);
-            return;
-        }
+        if (!CheckCollisionPointRec(GetMousePosition(), tile_rect(app, grid, i)))
+            continue;
+        const double now = GetTime();
+        const bool double_click = i == last_click_tile && now - last_click_time < DOUBLE_CLICK_SECONDS;
+        last_click_tile = double_click ? -1 : i;
+        last_click_time = now;
+        grid.selected = i;
+        if (double_click && grid.expansion.toggle(grid.layout, grid.selected, grid.camera, i))
+            return true;
+        select_audio(grid);
+        return false;
     }
+    return false;
 }
 
 static void draw_live_bar(App &app)
@@ -118,6 +131,7 @@ static void draw_live_bar(App &app)
     for (int i = 0; i < 4; i++) {
         Rectangle r = {LIST_WIDTH + 10.0f + i * 50.0f, y + 7.0f, 40.0f, 30.0f};
         if (button(r, TextFormat("%d", LIVE_LAYOUTS[i]), LIVE_LAYOUTS[i] == grid.layout) && LIVE_LAYOUTS[i] != grid.layout) {
+            grid.expansion.restore_cameras(grid.selected, grid.camera);
             grid.layout = LIVE_LAYOUTS[i];
             grid.selected = std::min(grid.selected, grid.layout - 1);
             rebuild_live_streams(grid);
@@ -290,6 +304,7 @@ static void draw_playback_panel(App &app)
     for (int i = 0; i < 2; i++) {
         int layout = PLAYBACK_LAYOUTS[i];
         if (button({x + 224 + i * 44.0f, y + 6, 40, 28}, TextFormat("%d", layout), grid.layout == layout) && grid.layout != layout) {
+            grid.expansion.restore_cameras(grid.selected, grid.camera);
             grid.layout = layout;
             grid.selected = std::min(grid.selected, layout - 1);
             restart_playback_streams(pb);
@@ -328,7 +343,14 @@ void draw_app(App &app)
 
     BeginDrawing();
     ClearBackground(BG);
-    handle_tile_click(app, grid);
+    if (handle_tile_click(app, grid)) {
+        if (app.tab == Tab::Live) {
+            rebuild_live_streams(grid);
+        } else {
+            restart_playback_streams(app.playback);
+            select_audio(grid);
+        }
+    }
     for (int i = 0; i < grid.layout; i++)
         draw_tile(app, grid, i, app.tab == Tab::Playback ? &app.playback.segments : nullptr);
 

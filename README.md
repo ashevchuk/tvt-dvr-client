@@ -87,7 +87,7 @@ export DVR_USER=... DVR_PASS=...
 | Where | Action |
 |---|---|
 | Camera list | assign the camera to the selected tile (`[a]` marks cameras with audio) |
-| Tile | click to select it; audio follows the selected tile |
+| Tile | click to select it; audio follows the selected tile; double-click shows the camera alone, double-click again restores the grid |
 | Playback calendar | click a day with recordings |
 | Timeline | left click seeks; wheel zooms; middle drag pans; right drag selects a period |
 | Download button | saves the selected period of the selected camera |

@@ -8,6 +8,7 @@ void enter_playback(App &app)
 {
     Playback &pb = app.playback;
     stop_all(app.live);
+    pb.grid.expansion.forget();
     pb.grid.layout = app.live.layout == 1 ? 1 : 4;
     for (int i = 0; i < MAX_TILES; i++)
         pb.grid.camera[i] = app.live.camera[i];
