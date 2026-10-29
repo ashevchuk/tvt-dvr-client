@@ -15,7 +15,8 @@ machine, so the file in a release is the one built from the tagged commit on a c
 
 3. The workflow runs the unit tests, builds the AppImage in the container described in
    `packaging/appimage/`, checks it (checksum, no missing libraries, glibc 2.28 at most) and
-   creates the GitHub release with the AppImage, its SHA-256 and the FFmpeg source.
+   creates the GitHub release with the AppImage and its SHA-256. The release notes carry the
+   written offer for the FFmpeg source, filled in from the Dockerfile.
 
 The workflow can also be started by hand from the Actions tab or with
 `gh workflow run release.yml`. That only builds the AppImage and keeps it as a workflow artifact
@@ -31,4 +32,5 @@ with the downloaded AppImage before announcing a release.
 The versions and SHA-256 hashes of FFmpeg, raylib and the packaging tools are in
 `packaging/appimage/Dockerfile`. Update the version and the hash together; the build fails if they
 disagree. FFmpeg publishes a signature next to each release: verify it when you update the hash.
+When FFmpeg is updated, change its version in `packaging/appimage/THIRD-PARTY-NOTICES.md` too.
 The third-party actions used by the workflow are pinned to commit SHAs; update them the same way.

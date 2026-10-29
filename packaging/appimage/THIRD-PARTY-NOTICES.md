@@ -9,9 +9,10 @@ from the unmodified FFmpeg 7.1.5 source release, built without `--enable-gpl` an
 `--enable-nonfree`. The options used are in `ffmpeg-configure.txt`; the licence text is in
 `ffmpeg-COPYING.LGPLv2.1`.
 
-The source is available from <https://ffmpeg.org/releases/ffmpeg-7.1.5.tar.xz> and is attached to
-the release that carries this AppImage. The libraries are linked dynamically, so they can be
-replaced with a build of your own: put the files in `usr/lib` of the extracted AppImage
+The source is available from <https://ffmpeg.org/releases/ffmpeg-7.1.5.tar.xz>. If that address
+stops working, open an issue at <https://github.com/ashevchuk/tvt-dvr-client/issues> and a copy
+will be provided, for at least three years from the date of the release that carries this
+AppImage. The libraries are linked dynamically, so they can be replaced with a build of your own: put the files in `usr/lib` of the extracted AppImage
 (`--appimage-extract`) and repack it, or run the client with `LD_LIBRARY_PATH` pointing to them.
 
 ## raylib 6.2 (zlib/libpng licence)
