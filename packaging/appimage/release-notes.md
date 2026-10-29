@@ -4,13 +4,14 @@ Pre-release build of the AppImage, made by the release workflow from the tagged 
 
 ```sh
 chmod +x tvt-dvr-client-@VERSION@-x86_64.AppImage
-DVR_USER=... DVR_PASS=... ./tvt-dvr-client-@VERSION@-x86_64.AppImage <host> [port]
+./tvt-dvr-client-@VERSION@-x86_64.AppImage
 ```
 
 Needs x86-64 Linux with glibc 2.28 or newer, the X11 client libraries, OpenGL, and a sound
 server or ALSA. Running the file directly needs FUSE 2; otherwise use
-`--appimage-extract-and-run`. The client takes the host and the credentials from the command
-line and the environment, so starting it from a menu entry does nothing useful yet.
+`--appimage-extract-and-run`. The client opens a device screen where the DVR, user name and
+password are entered; devices are saved in `~/.config/tvt-dvr-client/devices.conf`. A host on the
+command line (with `DVR_USER` and `DVR_PASS` in the environment) connects without the screen.
 
 SHA-256 of the AppImage: `@SHA256@`
 
