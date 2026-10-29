@@ -11,8 +11,8 @@ HEAD_BYTES = 64
 FRAME_HEADER_BYTES = 60
 KEEPALIVE_SECONDS = 7.5
 NAME_FIELD_BYTES = 36
-PLAYBACK_SESSION_ID = 0xA
-DOWNLOAD_SESSION_ID = 0x64
+FIRST_PLAYBACK_SESSION = 0xA     # the vendor client numbers playback sessions 0xa, 0xb, 0xc, 0xd
+DOWNLOAD_SESSION = 0x64
 
 CMD_LOGIN = 0x0101
 CMD_STREAM_START = 0x0201
@@ -97,15 +97,27 @@ def connect(host, port, user, password):
             return sock, reader
 
 
-def start_live(sock, channels, sub=False):
-    """Streams several channels over one connection: the first request starts, each further one
-    adds a channel and carries the mask of every channel active so far."""
+def set_live_channels(sock, channels, sub=False, running=False):
+    """Selects the set of live channels carried by the connection.
+
+    The first request is a start; later ones replace the whole set, so a smaller mask drops
+    channels. An empty set stops everything.
+    """
+    if not channels:
+        stop_live(sock)
+        return
     mask = 0
-    for i, channel in enumerate(channels):
+    for channel in channels:
         mask |= 1 << channel
-        main_mask, sub_mask = (0, mask) if sub else (mask, 0)
-        cmd = CMD_STREAM_START if i == 0 else CMD_STREAM_ADD
-        send_message(sock, cmd, struct.pack("<9I", 0, main_mask, 0, sub_mask, 0, 0, 0, mask, 0))
+    main_mask, sub_mask = (0, mask) if sub else (mask, 0)
+    cmd = CMD_STREAM_ADD if running else CMD_STREAM_START
+    send_message(sock, cmd, struct.pack("<9I", 0, main_mask, 0, sub_mask, 0, 0, 0, mask, 0))
+
+
+def start_live(sock, channels, sub=False):
+    """Starts several channels, one request each, the way the vendor client does."""
+    for i in range(len(channels)):
+        set_live_channels(sock, channels[:i + 1], sub, running=i > 0)
 
 
 def stop_live(sock):
@@ -127,23 +139,21 @@ def search_segments(sock, reader, channel, start, stop):
     return [struct.unpack("<2I", payload[o + 4:o + 12]) for o in range(16, len(payload) - 11, 12)]
 
 
-def start_playback(sock, channel, start, stop, download=False):
-    """Starts sending recorded frames. A download is a playback with its own session id and a flag."""
+def start_playback(sock, session, channel, start, stop, download=False):
+    """Starts sending recorded frames of one channel. A download is a playback with its own
+    session id and a flag."""
     mask = 1 << channel
-    session = DOWNLOAD_SESSION_ID if download else PLAYBACK_SESSION_ID
     send_message(sock, CMD_PLAY_START,
                  struct.pack("<11I", 0xFFFFFFFF, session, mask, 0, mask, 0, start, stop, int(download),
                              PLAYBACK_RECORD_TYPES, 0))
 
 
-def ack_playback(sock, sequence, download=False):
-    """Tells the device that messages up to `sequence` (counted from 1 per session) were consumed."""
-    session = DOWNLOAD_SESSION_ID if download else PLAYBACK_SESSION_ID
+def ack_playback(sock, session, sequence):
+    """Tells the device that the session's messages up to `sequence` (counted from 1) were consumed."""
     send_message(sock, CMD_PLAY_ACK, struct.pack("<11I", 0, session, 0, 0, 0, 0, 0, 0, sequence, 0, 0))
 
 
-def stop_playback(sock, download=False):
-    session = DOWNLOAD_SESSION_ID if download else PLAYBACK_SESSION_ID
+def stop_playback(sock, session):
     send_message(sock, CMD_PLAY_STOP, struct.pack("<11I", 0, session, 0, 0, 0, 0, 0, 0, 0, 0, 0))
 
 

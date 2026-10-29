@@ -110,12 +110,15 @@ w8 = 0
 Verified for the main stream on channels 0 and 5 and for the sub stream on channels 0, 3 and 5.
 
 **One connection carries several streams.** The vendor client opens a single TCP connection even
-with four live tiles. The first channel is requested with `0x0201`; every further channel is added
-with `0x0202`, whose masks are cumulative (`0x1`, then `0x3`, then `0x7`, then `0xf`), so each
-request describes the whole set of active channels. Media messages are told apart by the channel
-number in the frame header (`w6`). Checked with channels 0, 1, 3, 5 on the main stream and
-0 to 3 on the sub stream. Removing a single channel from a running set was not captured; `0x0203`
-with zeros stops everything. Requesting both streams of one channel at once was not tried.
+with four live tiles. The first request is `0x0201`; every later request is `0x0202`. Both carry
+the **complete set** of active channels, not a change: `0x0202` with `0x3` and then `0x7` and
+`0xf` grows the set, and `0xd`, `0x9`, `0x1` shrink it again (the vendor client does exactly this
+when the layout goes from four tiles to one). `0x0203` with zeros stops everything.
+
+The main-stream mask (`w1`) and the sub-stream mask (`w3`) are independent: main on some
+channels and sub on others in one request works, a channel can move between the streams, and
+even both streams of one channel can run together. Media messages are told apart by the channel
+number (`w6`) and the stream (`w9`, see below).
 
 ## Media messages
 
@@ -129,12 +132,13 @@ is a 60-byte frame header (fifteen words) followed by `w2` bytes of data.
 | w2 | length of the data after the header |
 | w3, w4 | width and height (video and video format only) |
 | w6 | channel number, counting from 0 |
+| w9 | stream: `0x20` main stream (and all audio), `0x40` sub stream |
 | w5 | an address inside the device; not data |
 | w11, w12 | low and high 32 bits of a timestamp in microseconds since the Unix epoch (UTC) |
 | w13 | a second microsecond counter, advancing in step with w11 *(hypothesis: time since stream start)* |
 | w14 | `0x108` in all captures |
 
-Other words (w7-w10) were constant or not understood.
+Other words (w7, w8, w10) were constant or not understood.
 
 - **Video** (kind 1): Annex-B H.264, SPS/PPS inside key frames; consecutive frames are 40 ms
   apart at 25 fps. The same frames the SDK hands to its callback.
@@ -187,10 +191,21 @@ w10 = 0
 ```
 
 The device answers with `cmd = 0x00050003` carrying `0x3e8`, then media messages as for live
-video. Playback is one channel per request. The first frame is the key frame at or before the
+video. A playback request covers one channel. The first frame is the key frame at or before the
 requested start, so it can be a few seconds early or even in an earlier segment. A session
 started inside a gap begins at that channel's next recording. When the range ends the device
 sends a media message of kind 9.
+
+### Several playbacks on one connection
+
+The vendor client plays up to four recordings over one connection, one session each, numbered
+`0x0a`, `0x0b`, `0x0c`, `0x0d` by tile. Each session has its own channel mask in `0x0502`, its
+own sequence numbers and acknowledgements (the session id is in `w1` of `0x050b` and `0x0507`)
+and its own kind 9 end marker; the media messages are told apart by the channel number. The
+recorded segments are searched per channel with one `0x0501` each. Four sessions at once is the
+device's limit. Verified with channels 0 to 3 played in parallel, each acknowledged by its own
+timestamps. Using a session number outside this range, or two sessions for one channel, was not
+tried.
 
 ### Flow control and speed
 
@@ -229,8 +244,6 @@ messages; muxing them into a file is up to the client. The stream ends with the 
 
 ## Not yet captured
 
-Removing one channel from a running live set, several playbacks on one connection (and whether
-they need different session ids), slow motion and reverse playback, what the device does when a
-session id or range is invalid, record types in the segment list, the error code of a rejected
-login, PTZ, configuration, alarm events, talk-back, and whether any of this differs between
-firmware versions.
+Slow motion and reverse playback, what the device does when a session id or range is invalid,
+record types in the segment list, the error code of a rejected login, PTZ, configuration, alarm
+events, talk-back, and whether any of this differs between firmware versions.

@@ -24,7 +24,7 @@ def show_time(unix):
 
 def play(sock, reader, args):
     start, stop = proto.local_to_unix(args.start), proto.local_to_unix(args.end)
-    proto.start_playback(sock, args.channel, start, stop)
+    proto.start_playback(sock, proto.FIRST_PLAYBACK_SESSION, args.channel, start, stop)
     sock.settimeout(5)
     began = last_keepalive = time.time()
     first_us = None
@@ -62,8 +62,8 @@ def play(sock, reader, args):
                 due = began + (frame.time_us - first_us) / 1e6 / args.speed
                 time.sleep(max(0.0, due - time.time()))
             if args.ack != "none":
-                proto.ack_playback(sock, sequence)
-    proto.stop_playback(sock)
+                proto.ack_playback(sock, proto.FIRST_PLAYBACK_SESSION, sequence)
+    proto.stop_playback(sock, proto.FIRST_PLAYBACK_SESSION)
     elapsed = time.time() - began
     print("ack=%s: %d video + %d audio messages in %.1f s" % (args.ack, video, audio, elapsed))
     if first_us is not None:
@@ -78,7 +78,7 @@ ACK_EVERY = 8
 def download(sock, reader, args):
     """Fetches a period as fast as the device allows; the video goes to a raw .h264 file."""
     start, stop = proto.local_to_unix(args.start), proto.local_to_unix(args.end)
-    proto.start_playback(sock, args.channel, start, stop, download=True)
+    proto.start_playback(sock, proto.DOWNLOAD_SESSION, args.channel, start, stop, download=True)
     sock.settimeout(10)
     began = last_keepalive = time.time()
     sequence = video = audio = 0
@@ -101,7 +101,7 @@ def download(sock, reader, args):
                 continue
             sequence += 1
             if sequence % ACK_EVERY == 0:
-                proto.ack_playback(sock, sequence, download=True)
+                proto.ack_playback(sock, proto.DOWNLOAD_SESSION, sequence)
             first_us = first_us or frame.time_us
             last_us = frame.time_us
             if frame.kind == proto.KIND_VIDEO:
@@ -109,7 +109,7 @@ def download(sock, reader, args):
                 out.write(frame.data)
             else:
                 audio += 1
-    proto.stop_playback(sock, download=True)
+    proto.stop_playback(sock, proto.DOWNLOAD_SESSION)
     elapsed = time.time() - began
     print("downloaded %d video + %d audio messages covering %.1f s of recording in %.1f s (%.1fx)" % (
         video, audio, (last_us - first_us) / 1e6, elapsed, (last_us - first_us) / 1e6 / elapsed))
