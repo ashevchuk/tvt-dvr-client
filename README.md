@@ -17,6 +17,17 @@ and company names belong to their owners and are used only to describe compatibi
 - **Download** of a selected period into `~/Videos/dvr`: a Matroska file with the H.264 video and
   PCM audio, timestamped from the device clock.
 
+## Screenshots
+
+Live view in the 2x2 layout, four stairwell and hallway cameras:
+
+![Live view, four cameras](docs/screenshots/live.png)
+
+Playback of four channels at the same moment, with the calendar of recorded days and the
+timeline of each channel:
+
+![Playback of four channels with the calendar and timeline](docs/screenshots/playback.png)
+
 ## How it talks to the device
 
 The protocol was reconstructed from network captures and is implemented in `src/proto`; see
