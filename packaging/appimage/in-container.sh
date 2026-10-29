@@ -53,7 +53,10 @@ unexpected=$(echo "$outside" | grep -vE '^(libc|libm|libdl|libpthread|librt|libu
 [ -z "$unexpected" ] || { echo "UNEXPECTED host dependencies: $unexpected"; exit 1; }
 unset LD_LIBRARY_PATH
 echo "== highest GLIBC symbol version required"
-objdump -T "$APPDIR/usr/bin/tvt-dvr-client" "$APPDIR"/usr/lib/*.so.*.*.* 2>/dev/null | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1
+MAX_GLIBC=GLIBC_2.28
+highest=$(objdump -T "$APPDIR/usr/bin/tvt-dvr-client" "$APPDIR"/usr/lib/*.so.*.*.* 2>/dev/null | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1)
+echo "$highest (limit $MAX_GLIBC)"
+[ "$(printf '%s\n' "$highest" "$MAX_GLIBC" | sort -V | tail -1)" = "$MAX_GLIBC" ] || { echo "the bundle needs a newer glibc than $MAX_GLIBC"; exit 1; }
 echo "== RPATH of the executable"; readelf -d "$APPDIR/usr/bin/tvt-dvr-client" | grep -E 'RPATH|RUNPATH'
 
 OUT="/out/tvt-dvr-client-${VERSION}-x86_64.AppImage"

@@ -93,7 +93,8 @@ needs FUSE 2; without it, start it with `--appimage-extract-and-run`. The client
 and the credentials from the command line and the environment, so launching it from a menu
 entry does nothing useful yet.
 
-To build it yourself (Docker, network access):
+Releases are built by a GitHub Actions workflow when a `v*` tag is pushed, see
+[docs/releasing.md](docs/releasing.md). To build it yourself (Docker, network access):
 
 ```sh
 packaging/appimage/build-appimage.sh 0.1.0      # from a clean checkout; writes to dist/
