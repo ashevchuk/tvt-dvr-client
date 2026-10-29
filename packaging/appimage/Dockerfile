@@ -27,7 +27,8 @@ ARG RUNTIME_SHA256=2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec2
 RUN mkdir -p /opt/src \
  && curl -fsSL -o /opt/src/ffmpeg.tar.xz "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz" \
  && echo "${FFMPEG_SHA256}  /opt/src/ffmpeg.tar.xz" | sha256sum -c - \
- && tar -C /opt/src -xf /opt/src/ffmpeg.tar.xz \
+ && tar -C /opt/src --no-same-owner -xf /opt/src/ffmpeg.tar.xz \
+ && chmod -R a+rX "/opt/src/ffmpeg-${FFMPEG_VERSION}" \
  && rm /opt/src/ffmpeg.tar.xz \
  && cd "/opt/src/ffmpeg-${FFMPEG_VERSION}" \
  && source scl_source enable gcc-toolset-12 \
@@ -42,7 +43,8 @@ RUN mkdir -p /opt/src \
 
 RUN curl -fsSL -o /opt/src/raylib.tar.gz "https://github.com/raysan5/raylib/archive/refs/tags/${RAYLIB_VERSION}.tar.gz" \
  && echo "${RAYLIB_SHA256}  /opt/src/raylib.tar.gz" | sha256sum -c - \
- && tar -C /opt/src -xzf /opt/src/raylib.tar.gz \
+ && tar -C /opt/src --no-same-owner -xzf /opt/src/raylib.tar.gz \
+ && chmod -R a+rX "/opt/src/raylib-${RAYLIB_VERSION}" \
  && rm /opt/src/raylib.tar.gz \
  && ln -s "/opt/src/raylib-${RAYLIB_VERSION}" /opt/src/raylib \
  && source scl_source enable gcc-toolset-12 \
