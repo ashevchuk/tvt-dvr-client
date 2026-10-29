@@ -8,8 +8,7 @@ and anything not listed is unknown.
 
 `tools/live_poc.py` and `tools/playback_poc.py` are working clients for the parts below. The
 results were checked against the manufacturer's own SDK on the same device (frame counts of a
-download, search results, playback timing); the implementation on top of that SDK that was used
-for the comparison is kept in the git tag `sdk-backend-last`.
+download, search results, playback timing).
 
 ## Security
 
