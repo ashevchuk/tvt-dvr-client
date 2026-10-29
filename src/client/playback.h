@@ -34,7 +34,8 @@ inline int day_key(int year, int month, int day) { return year * 10000 + month *
 void load_recorded_days(Playback &pb);
 void select_day(Playback &pb, int year, int month, int day);
 void restart_playback_streams(Playback &pb);
-void update_playback(Playback &pb, float dt);
+// Sessions are only opened while `device_up`; opening one blocks while the device is unreachable.
+void update_playback(Playback &pb, float dt, bool device_up);
 void start_download(Playback &pb);
 void poll_download(Download &dl);
 void cancel_download(Download &dl);

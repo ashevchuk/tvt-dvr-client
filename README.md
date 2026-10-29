@@ -42,8 +42,12 @@ Developed and tested against one 16-channel DVR (firmware `3.3.0.P-3531-00`) on 
 models and firmware may behave differently. See [docs/device-notes.md](docs/device-notes.md) for
 what is known about the device behaviour.
 
-Not implemented: PTZ, device configuration, alarm events, reverse playback, automatic reconnect
-after a network loss.
+After a network loss the client reconnects by itself, waiting longer between failed attempts. Live
+streams resume, playback continues from the current position of its clock, and a banner shows
+while the device is unreachable. A download that was running is not resumed and has to be started
+again. A connection that stays open but stops delivering frames is not detected.
+
+Not implemented: PTZ, device configuration, alarm events, reverse playback.
 
 ## Security
 

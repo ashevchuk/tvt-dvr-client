@@ -17,6 +17,9 @@ namespace dvr {
 namespace {
 
 constexpr int kConnectTimeoutMs = 5000;
+// A peer that vanishes without a reset (a pulled cable) is noticed only when sent data stays
+// unacknowledged this long; the keepalive keeps some in flight.
+constexpr unsigned kUserTimeoutMs = 10000;
 constexpr int kHandshakeTimeoutMs = 5000;
 constexpr int kPollMs = 500;
 constexpr size_t kReadBytes = 64 << 10;
@@ -69,6 +72,8 @@ int connect_to(const std::string &host, int port, std::string &error)
     } else {
         int one = 1;
         setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));
+        const unsigned user_timeout = kUserTimeoutMs;
+        setsockopt(fd, IPPROTO_TCP, TCP_USER_TIMEOUT, &user_timeout, sizeof(user_timeout));
     }
     return fd;
 }

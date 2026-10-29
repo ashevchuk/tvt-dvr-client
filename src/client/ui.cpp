@@ -38,6 +38,16 @@ static Rectangle tile_rect(const App &app, const Grid &grid, int index)
     return {area.x + (index % cols) * w, area.y + (index / cols) * h, w, h};
 }
 
+static void draw_notice(const char *text)
+{
+    const int padding = 16;
+    const int width = MeasureText(text, 16) + 2 * padding;
+    const Rectangle r = {(GetScreenWidth() - width) / 2.0f, (float)(TAB_HEIGHT + 10), (float)width, 32};
+    DrawRectangleRec(r, Color{40, 28, 10, 235});
+    DrawRectangleLinesEx(r, 1, ORANGE);
+    DrawText(text, (int)r.x + padding, (int)r.y + 8, 16, ORANGE);
+}
+
 static void draw_tile(const App &app, const Grid &grid, int index, const SegmentCache *segments)
 {
     Rectangle r = tile_rect(app, grid, index);
@@ -365,5 +375,7 @@ void draw_app(App &app)
         }
     }
     draw_tabs(app);
+    if (app.reconnect.outage())
+        draw_notice(TextFormat("Connection to the device lost - reconnecting (attempt %d)...", app.reconnect.attempt()));
     EndDrawing();
 }

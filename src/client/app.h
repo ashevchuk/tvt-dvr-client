@@ -1,6 +1,7 @@
 #pragma once
 
 #include "playback.h"
+#include "reconnect.h"
 
 enum class Tab { Live, Playback };
 
@@ -10,6 +11,8 @@ struct App {
     Grid live;
     Playback playback;
     bool switch_device = false;
+    // Declared last so that an attempt in progress is waited for before the streams are destroyed.
+    Reconnector reconnect;
 };
 
 void enter_playback(App &app);

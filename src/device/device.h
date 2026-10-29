@@ -71,6 +71,14 @@ public:
     virtual std::vector<time_t> recorded_days() = 0;
     virtual std::vector<Segment> segments(int channel, time_t day_start) = 0;
     virtual std::unique_ptr<Download> download(int channel, time_t start, time_t stop, const std::string &path) = 0;
+
+    // False once the connection kept for searches, or the one carrying live streams, has been lost.
+    // Never blocks.
+    virtual bool connected() = 0;
+    // Reopens the connections that were lost and resumes the live streams that were running. Blocks
+    // while it tries; returns false if the device cannot be reached. Playbacks and downloads
+    // have their own connections and are not resumed.
+    virtual bool reconnect(std::string &error) = 0;
 };
 
 std::unique_ptr<Device> connect_native(const std::string &host, int port, const std::string &user,

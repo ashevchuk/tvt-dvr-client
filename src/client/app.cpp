@@ -32,12 +32,33 @@ void enter_live(App &app)
     rebuild_live_streams(app.live);
 }
 
+// Streams whose session ended while the device was away are dropped and opened again; live streams
+// that were subscribed on the reopened connection resume by themselves. Segment lists fetched
+// during the outage may be empty, so they are fetched again.
+static void recover_streams(App &app)
+{
+    for (Grid *grid : {&app.live, &app.playback.grid})
+        for (std::unique_ptr<Stream> &s : grid->streams)
+            if (s && !s->connected())
+                s.reset();
+    if (app.tab == Tab::Live)
+        rebuild_live_streams(app.live);
+
+    Playback &pb = app.playback;
+    if (pb.day_start != 0)
+        pb.segments.reset(pb.day_start);
+    if (app.tab == Tab::Playback && pb.recorded_days.empty())
+        load_recorded_days(pb);
+}
+
 void update_app(App &app)
 {
     static int frame = 0;
+    if (app.reconnect.update(*g_device) == Reconnector::Event::Recovered)
+        recover_streams(app);
     Grid &grid = app.tab == Tab::Live ? app.live : app.playback.grid;
     if (app.tab == Tab::Playback) {
-        update_playback(app.playback, GetFrameTime());
+        update_playback(app.playback, GetFrameTime(), !app.reconnect.down());
         if (++frame % DOWNLOAD_POLL_FRAMES == 0)
             poll_download(app.playback.download);
     }

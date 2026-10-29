@@ -6,6 +6,9 @@ static const double DRIFT_LIMIT_SECONDS = 3.0;
 
 static const double DRIFT_HOLDOFF_SECONDS = 4.0;
 
+// A session that the device or the network ended is reopened at most this often per tile.
+static const double DEAD_SESSION_HOLDOFF_SECONDS = 3.0;
+
 void load_recorded_days(Playback &pb)
 {
     for (time_t day : g_device->recorded_days()) {
@@ -33,7 +36,7 @@ void restart_playback_streams(Playback &pb) { stop_all(pb.grid); }
 
 // Master clock and per-tile sessions. A tile has a session only while the clock is inside one of
 // its recorded segments, since a session started in a gap would jump to that channel's next recording.
-void update_playback(Playback &pb, float dt)
+void update_playback(Playback &pb, float dt, bool device_up)
 {
     Grid &grid = pb.grid;
     const int n = grid.layout;
@@ -78,9 +81,13 @@ void update_playback(Playback &pb, float dt)
             s.reset();
             continue;
         }
-        if (s && pb.playing && s->age_seconds() > DRIFT_HOLDOFF_SECONDS && s->has_frame() &&
+        if (s && device_up && pb.playing && s->age_seconds() > DRIFT_HOLDOFF_SECONDS && s->has_frame() &&
             std::fabs(s->displayed_time() - pb.position) > DRIFT_LIMIT_SECONDS)
             s.reset();
+        if (s && device_up && !s->connected() && s->age_seconds() > DEAD_SESSION_HOLDOFF_SECONDS)
+            s.reset();
+        if (!s && !device_up)
+            continue;
         if (!s) {
             StreamRequest req;
             req.camera = grid.camera[i];

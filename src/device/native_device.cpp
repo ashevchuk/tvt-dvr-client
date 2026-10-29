@@ -56,8 +56,12 @@ public:
                 return -1;
             fresh->set_media_handler([this](const wire::MediaFrame &f) { route(f); });
         }
+        // Destroyed after the lock is released: a dead connection joins its reader thread, which may
+        // be waiting for mutex_ inside route().
+        std::unique_ptr<Connection> stale;
         std::lock_guard<std::mutex> lock(mutex_);
         if (fresh) {
+            stale = std::move(connection_);
             connection_ = std::move(fresh);
             running_ = false;
         }
@@ -65,6 +69,34 @@ public:
         subscribers_.push_back({id, channel, main_stream, std::move(handler)});
         apply();
         return id;
+    }
+
+    // Replaces a lost connection and resubscribes the streams that were running on it. Does
+    // nothing while nobody is subscribed, since add() connects on demand.
+    bool ensure(std::string &error)
+    {
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (subscribers_.empty() || !connection_ || connection_->alive())
+                return true;
+        }
+        std::unique_ptr<Connection> fresh = connector_(error);
+        if (!fresh)
+            return false;
+        fresh->set_media_handler([this](const wire::MediaFrame &f) { route(f); });
+        std::unique_ptr<Connection> unused;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (connection_ && connection_->alive()) {
+                unused = std::move(fresh);      // add() restored it in the meantime
+            } else {
+                unused = std::move(connection_);
+                connection_ = std::move(fresh);
+                running_ = false;
+                apply();
+            }
+        }
+        return true;
     }
 
     void remove(int id)
@@ -79,6 +111,13 @@ public:
     {
         std::lock_guard<std::mutex> lock(mutex_);
         return connection_ && connection_->alive();
+    }
+
+    // False while streams are subscribed on a connection that was lost.
+    bool healthy()
+    {
+        std::unique_lock<std::mutex> lock(mutex_, std::try_to_lock);
+        return !lock.owns_lock() || subscribers_.empty() || (connection_ && connection_->alive());
     }
 
 private:
@@ -390,6 +429,29 @@ public:
         if (!connection)
             return nullptr;
         return std::make_unique<NativeDownload>(std::move(connection), std::move(writer), channel, start, stop);
+    }
+
+    bool connected() override
+    {
+        if (!live_.healthy())
+            return false;
+        // A search in progress holds the lock and proves the connection works.
+        std::unique_lock<std::mutex> lock(control_mutex_, std::try_to_lock);
+        return !lock.owns_lock() || control_->alive();
+    }
+
+    bool reconnect(std::string &error) override
+    {
+        {
+            std::lock_guard<std::mutex> lock(control_mutex_);
+            if (!control_->alive()) {
+                auto fresh = open_connection(error);
+                if (!fresh)
+                    return false;
+                control_ = std::move(fresh);
+            }
+        }
+        return live_.ensure(error);
     }
 
 private:
