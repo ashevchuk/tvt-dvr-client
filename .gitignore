@@ -11,3 +11,6 @@
 *.env
 *.avi
 *.h264
+
+__pycache__/
+*.pyc

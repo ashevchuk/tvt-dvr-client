@@ -16,9 +16,11 @@ and company names belong to their owners and are used only to describe compatibi
 - **Download** of a selected period as a standard AVI (H.264 + PCM) into `~/Videos/dvr`.
 - Two small command-line tools for experiments: `probe` (record a live stream) and
   `playback_probe` (list recordings and capture a playback).
-- `tools/live_poc.py`: a live-video client in plain Python that talks to the device without the
-  vendor SDK, as a first step towards dropping the SDK. The protocol notes are in
-  [docs/protocol.md](docs/protocol.md); `tools/tap.py` is the capture proxy they came from.
+- `tools/`: Python programs that talk to the device without the vendor SDK, as the first step
+  towards dropping it: `live_poc.py` (live video of several channels over one connection) and
+  `playback_poc.py` (recorded days and segments, playback at a chosen speed, downloads).
+  The protocol notes are in [docs/protocol.md](docs/protocol.md); `tap.py` is the capture proxy
+  they were derived from. Run them as `python3 tools/live_poc.py ...`.
 
 ## Status
 
