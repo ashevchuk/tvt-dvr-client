@@ -91,7 +91,8 @@ export DVR_USER=... DVR_PASS=...
 | Playback calendar | click a day with recordings |
 | Timeline | left click seeks; wheel zooms; middle drag pans; right drag selects a period |
 | Download button | saves the selected period of the selected camera |
-| `Esc` | quit |
+| `F11` | toggle full screen |
+| `Esc` | leave full screen, or quit when the window is not full screen |
 
 ## AppImage
 

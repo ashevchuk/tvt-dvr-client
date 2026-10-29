@@ -70,6 +70,7 @@ int main(int argc, char **argv)
     UnloadImage(icon);
     SetWindowMinSize(1000, 780);
     SetTargetFPS(60);
+    SetExitKey(KEY_NULL);
 
     g_audio.reset(new AudioPlayer());
     InitAudioDevice();
@@ -82,7 +83,16 @@ int main(int argc, char **argv)
     if (g_device)
         app = enter_main();
 
-    while (!WindowShouldClose()) {
+    bool quit = false;
+    while (!quit && !WindowShouldClose()) {
+        if (IsKeyPressed(KEY_F11))
+            ToggleFullscreen();
+        if (IsKeyPressed(KEY_ESCAPE)) {
+            if (IsWindowFullscreen())
+                ToggleFullscreen();
+            else
+                quit = true;
+        }
         if (app) {
             update_app(*app);
             draw_app(*app);
