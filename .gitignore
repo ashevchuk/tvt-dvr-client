@@ -1,10 +1,6 @@
 /build/
 /bin/
 
-# Proprietary SDK and anything else kept locally
-/vendor/*
-!/vendor/README.md
-
 # Secrets, working notes and captured media
 /.notes/
 .env

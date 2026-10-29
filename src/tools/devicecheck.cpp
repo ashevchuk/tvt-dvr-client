@@ -1,6 +1,6 @@
 // Exercises a Device through the interface the client uses: live streams, a paced playback with a
 // pause, searches and a download into a Matroska file.
-// Usage: devicecheck native|sdk HOST DOWNLOAD.mkv   (DVR_USER and DVR_PASS from the environment)
+// Usage: devicecheck HOST DOWNLOAD.mkv   (DVR_USER and DVR_PASS from the environment)
 #include <atomic>
 #include <chrono>
 #include <cstdio>
@@ -32,24 +32,18 @@ static void sleep_ms(int ms) { std::this_thread::sleep_for(std::chrono::millisec
 
 int main(int argc, char **argv)
 {
-    if (argc < 4 || !getenv("DVR_USER") || !getenv("DVR_PASS")) {
-        fprintf(stderr, "usage: %s native|sdk HOST DOWNLOAD.mkv  (DVR_USER and DVR_PASS from the environment)\n", argv[0]);
+    if (argc < 3 || !getenv("DVR_USER") || !getenv("DVR_PASS")) {
+        fprintf(stderr, "usage: %s HOST DOWNLOAD.mkv  (DVR_USER and DVR_PASS from the environment)\n", argv[0]);
         return 2;
     }
     std::string error;
-    std::unique_ptr<Device> device;
-    if (!strcmp(argv[1], "native"))
-        device = connect_native(argv[2], 6036, getenv("DVR_USER"), getenv("DVR_PASS"), error);
-#ifdef DVR_WITH_SDK
-    else
-        device = connect_sdk(argv[2], 6036, getenv("DVR_USER"), getenv("DVR_PASS"), error);
-#endif
+    std::unique_ptr<Device> device = connect_native(argv[1], 6036, getenv("DVR_USER"), getenv("DVR_PASS"), error);
     if (!device) {
         fprintf(stderr, "connect failed: %s\n", error.c_str());
         return 1;
     }
     const DeviceInfo &info = device->info();
-    printf("[%s] %s, firmware %s, %d channels, %d audio inputs\n", argv[1], info.name.c_str(), info.firmware.c_str(),
+    printf("%s, firmware %s, %d channels, %d audio inputs\n", info.name.c_str(), info.firmware.c_str(),
            info.video_channels, info.audio_inputs);
     int failures = 0;
     auto check = [&](bool ok, const char *what) {
@@ -141,10 +135,10 @@ int main(int argc, char **argv)
         printf("  recording time delivered: %.1f s\n", span / 1e6);
     }
 
-    printf("download: channel 0, 00:13:20 - 00:13:50 -> %s\n", argv[3]);
+    printf("download: channel 0, 00:13:20 - 00:13:50 -> %s\n", argv[2]);
     {
         auto started = Clock::now();
-        auto dl = device->download(0, local_time(2026, 10, 29, 0, 13, 20), local_time(2026, 10, 29, 0, 13, 50), argv[3]);
+        auto dl = device->download(0, local_time(2026, 10, 29, 0, 13, 20), local_time(2026, 10, 29, 0, 13, 50), argv[2]);
         check(dl != nullptr, "download started");
         int progress = 0, last_progress = -1;
         while (dl && progress >= 0 && progress < 100 && Clock::now() - started < std::chrono::seconds(60)) {

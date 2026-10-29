@@ -8,8 +8,7 @@
 #include <string>
 #include <vector>
 
-// What the client needs from a DVR, independent of how the device is reached: through the vendor
-// SDK or through the native protocol implementation.
+// What the client needs from a DVR, independent of how the device is reached.
 namespace dvr {
 
 struct DeviceInfo {
@@ -76,9 +75,5 @@ public:
 
 std::unique_ptr<Device> connect_native(const std::string &host, int port, const std::string &user,
                                        const std::string &password, std::string &error);
-#ifdef DVR_WITH_SDK
-std::unique_ptr<Device> connect_sdk(const std::string &host, int port, const std::string &user,
-                                    const std::string &password, std::string &error);
-#endif
 
 }  // namespace dvr

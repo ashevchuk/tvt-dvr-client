@@ -1,15 +1,15 @@
-# Device and SDK notes
+# Device notes
 
-Observations from a 16-channel DVR (firmware `3.3.0.P-3531-00`, 4 audio inputs) and SDK
-`1.2.1.019`. They explain choices made in the client; none of this is vendor documentation.
+Observations from a 16-channel DVR (firmware `3.3.0.P-3531-00`, 4 audio inputs). They explain
+choices made in the client; the message formats are in [protocol.md](protocol.md). None of this
+is manufacturer documentation.
 
 ## Connection
 
-- The device listens on TCP 6036 (the web UI's `server.js` says `NetPort=6036`). The SDK's
-  default of 9008 is not used by this device; pass the port to `NET_SDK_Login`.
-- On connect the server speaks first: a 64-byte packet starting with the ASCII bytes `head`.
-  The SDK recognises it.
-- One login carries 16 simultaneous live streams.
+- The device listens on TCP 6036 (the web UI's `server.js` says `NetPort=6036`).
+- One connection carries many streams: 16 live channels, or four playbacks, share it. Further
+  connections work too; the client uses one for live view and one per playback and download.
+- A login that is rejected does not lock the account (one failed attempt was made).
 
 ## Live streams
 
@@ -19,61 +19,37 @@ Observations from a 16-channel DVR (firmware `3.3.0.P-3531-00`, 4 audio inputs) 
   frame, so up to a few seconds after start.
 - libavcodec logs `SEI type 18 ... truncated` on nearly every frame; the payload is a vendor
   extension and the picture is unaffected.
-- Audio arrives unprompted; `NET_SDK_OpenSound` only controls local playback through ALSA.
-  The audio data is a series of 168-byte units. Each unit is a 4-byte header `00 01 52 00`
+- Audio arrives unprompted with the stream; there is nothing to switch on. Only the first four
+  channels have audio inputs.
+- The audio data is a series of 168-byte units. Each unit is a 4-byte header `00 01 52 00`
   (`0x52` is 82 words, the length of what follows) and one IMA ADPCM block of 164 bytes: a
   4-byte block header (predictor, step index, padding) and 160 bytes of data, 321 samples at
-  8 kHz mono. A message holds five units, 200 ms. The format frame claims `nBlockAlign=1`, which
-  is wrong. The SDK's frame callback delivers the same units followed by 4 more bytes.
-  Decoding 168-byte blocks that start after the unit header looks right but reads the next
+  8 kHz mono. A message holds five units, 200 ms. The format frame claims a block alignment of
+  1, which is wrong.
+- Decoding 168-byte blocks that start after the unit header looks right but reads the next
   unit's header as 8 extra samples per block; drop the 4-byte header and decode 164-byte blocks.
-  The device sends audio in 200 ms bursts, so a ~300 ms jitter buffer is needed.
-- Only the first four channels have audio inputs.
+- The device sends audio in 200 ms bursts, so a ~300 ms jitter buffer is needed.
 
-## SDK behaviour worth knowing
+## Time
 
-- The SDK writes diagnostics to stdout. Redirect file descriptor 1 to stderr before using
-  stdout for a media stream.
-- Returning from `main` without `NET_SDK_Logout`/`NET_SDK_Cleanup` while SDK threads are alive
-  crashes the process.
-- `NET_SDK_Cleanup` frees memory allocated with `new[]` using `delete`; AddressSanitizer reports
-  it. It is inside the library and harmless in practice.
-- The manual is a CHM file (`7z x` unpacks it; pages are GBK). Error codes are the positions
-  in the `NET_SDK_SUCCESS` enumeration at the top of `DVR_NET_SDK.h`.
-- `DD_TIME` holds broken-down local wall-clock time: `year` is years since 1900 and `month` is
-  0-11; `nTotalseconds` can stay zero. Frame timestamps (`frameInfo.time`) are microseconds
-  since the Unix epoch (UTC).
-
-## Searching recordings
-
-- `NET_SDK_FindNext*` returns `NET_SDK_TRY_LATER` while the search is still running. Retrying
-  is required, otherwise the list is silently truncated. The end of a list is
-  `NET_SDK_NOMOREFILE`.
-- `NET_SDK_FindRecDate` lists days with recordings and may repeat a day.
-- `NET_SDK_FindTime` returns recorded segments of one channel for a time range. It carries no
-  record type.
+Frame timestamps are microseconds since the Unix epoch (UTC). The recorded segments and days
+the device reports are local wall-clock times of the device, which the client assumes to be in
+the time zone of the computer it runs on.
 
 ## Playback
 
-- `NET_SDK_PlayBackByTime` accepts exactly one channel; a longer list fails with
-  `NET_SDK_PARAMETER_ERROR`. `NET_SDK_PlayBackByTimeSync` accepts several but never calls the
-  data callback (it is meant for the SDK's own window), so it cannot be used here.
-- At most four playback sessions can run at once per login; the fifth fails with
-  `NET_SDK_DVR_NORESOURCE`.
-- Frames are delivered through `NET_SDK_SetPlayDataCallBack` in real time, in the same format
-  as live frames.
+- At most four playbacks can run at once; a fifth is refused.
 - A session started in a gap begins at that channel's next recording, which can be much later.
   A session started inside a segment begins at the preceding key frame, possibly in the previous
   segment, so frames earlier than the requested time must be decoded but not shown.
 - One session running to the end of the day crosses gaps by itself.
-- `NET_SDK_PlayBackControl` supports pause, resume, `FF` with `NET_SDK_RPB_SPEED_*`, normal
-  speed and `SETPOS` (seconds since the Unix epoch). At 4x the audio is delivered at 4x as well.
+- The device lists a day with recordings more than once around the clock change.
+- The list of segments carries no record type.
 
-## Downloading
+## Downloads
 
-- `NET_SDK_GetFileByTimeEx(..., bCustomFormat = FALSE)` writes a standard AVI with H.264 and PCM
-  audio, about six times faster than real time. `TRUE` produces an opaque private format, and
-  the callback mode also delivers the private format.
-- The AVI header says 29.97 fps and contains filler slots; the real frame rate is 25 and the
-  duration and audio/video sync are correct.
-- Progress is `NET_SDK_GetDownloadPos` (0-100; 200 means a network error).
+- A download arrives about seven times faster than real time. Writing it into a Matroska file
+  with the device's timestamps gives the exact frame count of the requested period plus the few
+  seconds before the first key frame.
+- The files the manufacturer's own software produced for the same period were AVI files whose
+  header says 29.97 fps and which contain filler slots; the real frame rate is 25.

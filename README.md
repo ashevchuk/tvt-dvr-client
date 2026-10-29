@@ -17,16 +17,12 @@ and company names belong to their owners and are used only to describe compatibi
 - **Download** of a selected period into `~/Videos/dvr`: a Matroska file with the H.264 video and
   PCM audio, timestamped from the device clock.
 
-## Backends
+## How it talks to the device
 
-The client reaches the device through one of two interchangeable backends:
-
-| Backend | Needs | Notes |
-|---|---|---|
-| `native` (default) | nothing proprietary | the protocol is implemented in `src/proto`, see [docs/protocol.md](docs/protocol.md) |
-| `sdk` | the manufacturer's SDK (`make SDK=1`) | the original path, kept for comparison; downloads are AVI files |
-
-Both pass the same checks (`bin/devicecheck`). The native backend is also faster at downloads.
+The protocol was reconstructed from network captures and is implemented in `src/proto`; see
+[docs/protocol.md](docs/protocol.md). Nothing from the manufacturer is used or included. The
+client reaches the device through a small `Device` interface (`src/device`), so the protocol
+layer can be replaced or faked in tests.
 
 ## Status
 
@@ -46,16 +42,12 @@ expose its port to the internet; use a VPN or a separate VLAN.
 
 - g++ with C++17, `make`, `pkg-config`
 - development packages for raylib, libavformat, libavcodec, libswscale and libavutil
-- optionally the manufacturer's SDK for the `sdk` backend; it is not included here (see
-  [vendor/README.md](vendor/README.md))
 
 ## Build
 
 ```sh
 make                    # the client and the checks into bin/
 make test               # unit tests of the protocol layer and the audio decoder
-make SDK=1              # also build the SDK backend and the SDK experiments
-make SDK=1 SDK_DIR=/path/to/sdk
 ```
 
 ## Run
@@ -65,7 +57,6 @@ Credentials are read from the environment so they never appear in the process li
 ```sh
 export DVR_USER=... DVR_PASS=...
 ./bin/tvt-dvr-client <host> [port]                       # port defaults to 6036
-./bin/tvt-dvr-client --backend sdk <host> [port]         # needs a build with SDK=1
 ```
 
 | Where | Action |
@@ -107,7 +98,7 @@ The versions of FFmpeg, raylib and the packaging tools are pinned by SHA-256 in
 ## Checking a device
 
 ```sh
-./bin/devicecheck native <host> /tmp/test.mkv     # searches, live streams, playback, pause, download
+./bin/devicecheck <host> /tmp/test.mkv            # searches, live streams, playback, pause, download
 ./bin/protocheck <host>                           # the protocol layer alone
 ```
 
@@ -118,17 +109,17 @@ need its time constants adjusted for yours.
 
 ```
 src/proto/    the wire protocol: framing, messages, and a logged-in connection
-src/device/   the Device interface, the native and SDK backends, the file writer
+src/device/   the Device interface, its implementation on the protocol, the file writer
 src/media/    the audio decoder shared by the player and the file writer
 src/client/   the GUI client (stream decoding, playback logic, UI)
-src/tools/    command-line checks and SDK experiments
+src/tools/    command-line checks of a device
 tools/        Python programs that use the protocol without the client, and the capture proxy
 tests/        unit tests
+packaging/    the AppImage build
 docs/         the protocol and notes on how the device behaves
-vendor/       where the SDK goes if you want the SDK backend (ignored by git)
 ```
 
 ## License
 
-MIT, see [LICENSE](LICENSE). This applies to the code in this repository only; raylib, FFmpeg and
-the manufacturer's SDK are covered by their own licenses.
+MIT, see [LICENSE](LICENSE). This applies to the code in this repository only; raylib and FFmpeg
+are covered by their own licenses.

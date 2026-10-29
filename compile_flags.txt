@@ -1,4 +1,3 @@
+-xc++
 -std=c++17
 -Isrc
--Ivendor/sdk/include
--DDVR_WITH_SDK

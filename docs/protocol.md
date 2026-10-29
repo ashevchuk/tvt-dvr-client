@@ -6,7 +6,10 @@ here was observed on the wire; nothing was taken from vendor code. All integers 
 little-endian. Items marked *(hypothesis)* fit the captures but have not been tested directly,
 and anything not listed is unknown.
 
-`tools/live_poc.py` is a complete working client for the parts below (login, live video).
+`tools/live_poc.py` and `tools/playback_poc.py` are working clients for the parts below. The
+results were checked against the manufacturer's own SDK on the same device (frame counts of a
+download, search results, playback timing); the implementation on top of that SDK that was used
+for the comparison is kept in the git tag `sdk-backend-last`.
 
 ## Security
 

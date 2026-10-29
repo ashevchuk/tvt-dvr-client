@@ -12,24 +12,12 @@ static void av_log_without_vendor_sei(void *avcl, int level, const char *fmt, va
     av_log_default_callback(avcl, level, fmt, args);
 }
 
-static int usage(const char *program)
-{
-    fprintf(stderr, "usage: %s [--backend native|sdk] host [port]  (DVR_USER, DVR_PASS from env)\n", program);
-    return 2;
-}
-
 int main(int argc, char **argv)
 {
-    std::string backend = "native";
-    std::vector<std::string> positional;
-    for (int i = 1; i < argc; i++) {
-        if (!strcmp(argv[i], "--backend") && i + 1 < argc)
-            backend = argv[++i];
-        else
-            positional.push_back(argv[i]);
+    if (argc < 2 || argc > 3) {
+        fprintf(stderr, "usage: %s host [port]  (DVR_USER, DVR_PASS from env)\n", argv[0]);
+        return 2;
     }
-    if (positional.empty() || positional.size() > 2 || (backend != "native" && backend != "sdk"))
-        return usage(argv[0]);
     const char *user = getenv("DVR_USER");
     const char *pass = getenv("DVR_PASS");
     if (!user || !pass) {
@@ -38,25 +26,16 @@ int main(int argc, char **argv)
     }
 
     std::string error;
-    int port = positional.size() > 1 ? atoi(positional[1].c_str()) : 6036;
-    if (backend == "native") {
-        g_device = dvr::connect_native(positional[0], port, user, pass, error);
-    } else {
-#ifdef DVR_WITH_SDK
-        g_device = dvr::connect_sdk(positional[0], port, user, pass, error);
-#else
-        fprintf(stderr, "this build has no SDK backend (build with SDK=1)\n");
-        return 2;
-#endif
-    }
+    int port = argc > 2 ? atoi(argv[2]) : 6036;
+    g_device = dvr::connect_native(argv[1], port, user, pass, error);
     if (!g_device) {
         fprintf(stderr, "%s\n", error.c_str());
         return 1;
     }
     const dvr::DeviceInfo &info = g_device->info();
     g_audio_inputs = info.audio_inputs;
-    fprintf(stderr, "%s backend: name=%s fw=%s channels=%d audio_inputs=%d\n", backend.c_str(), info.name.c_str(),
-            info.firmware.c_str(), info.video_channels, info.audio_inputs);
+    fprintf(stderr, "connected: name=%s fw=%s channels=%d audio_inputs=%d\n", info.name.c_str(), info.firmware.c_str(),
+            info.video_channels, info.audio_inputs);
 
     App app;
     app.cameras = std::min<int>(info.video_channels, MAX_TILES);
