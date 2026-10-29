@@ -16,6 +16,9 @@ and company names belong to their owners and are used only to describe compatibi
 - **Download** of a selected period as a standard AVI (H.264 + PCM) into `~/Videos/dvr`.
 - Two small command-line tools for experiments: `probe` (record a live stream) and
   `playback_probe` (list recordings and capture a playback).
+- `tools/live_poc.py`: a live-video client in plain Python that talks to the device without the
+  vendor SDK, as a first step towards dropping the SDK. The protocol notes are in
+  [docs/protocol.md](docs/protocol.md); `tools/tap.py` is the capture proxy they came from.
 
 ## Status
 
@@ -25,6 +28,11 @@ See [docs/device-notes.md](docs/device-notes.md) for what is known about the dev
 
 Not implemented: PTZ, device configuration, alarm events, reverse playback, automatic reconnect
 after a network loss.
+
+## Security
+
+The DVR sends the user name and password in cleartext and does not encrypt the media. Do not
+expose its port to the internet; use a VPN or a separate VLAN.
 
 ## Requirements
 
