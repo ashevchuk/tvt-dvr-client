@@ -52,7 +52,7 @@ static void draw_tile(const App &app, const Grid &grid, int index, const Segment
         if (s->playback)
             DrawText(TextFormat("CH%02d %s", camera, format_clock((time_t)s->displayed_time()).c_str()), (int)r.x + 6, (int)r.y + 4, 14, ACCENT);
         else
-            DrawText(TextFormat("CH%02d %dx%d", camera, s->width(), s->height()), (int)r.x + 6, (int)r.y + 4, 14, ACCENT);
+            DrawText(TextFormat("CH%02d", camera), (int)r.x + 6, (int)r.y + 4, 14, ACCENT);
     } else {
         const char *state = "no stream";
         if (segments) {
