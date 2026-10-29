@@ -9,6 +9,7 @@ struct App {
     int cameras = 0;
     Grid live;
     Playback playback;
+    bool switch_device = false;
 };
 
 void enter_playback(App &app);

@@ -1,6 +1,8 @@
 #include "ui.h"
 
 #include "audio.h"
+#include "theme.h"
+#include "widgets.h"
 
 static const int TAB_HEIGHT = 34;
 static const int LIST_WIDTH = 180;
@@ -15,11 +17,6 @@ static const int PLAYBACK_LAYOUTS[] = {1, 4};
 // Sub streams (352x288) are the main stream's 928x576 field of view squeezed horizontally.
 static const float DISPLAY_ASPECT = 928.0f / 576.0f;
 static const double MIN_TIMELINE_SPAN = 120;
-static const Color BG = {18, 18, 20, 255};
-static const Color PANEL = {30, 32, 36, 255};
-static const Color BUTTON = {60, 62, 68, 255};
-static const Color ROW_HIGHLIGHT = {55, 60, 70, 255};
-static const Color ACCENT = {40, 220, 60, 255};
 static const Color RECORDED = {40, 150, 60, 255};
 static const Color SELECTION = {255, 150, 30, 110};
 static const Color CURSOR = {255, 255, 255, 255};
@@ -38,17 +35,6 @@ static Rectangle tile_rect(const App &app, const Grid &grid, int index)
     float w = area.width / cols;
     float h = area.height / cols;
     return {area.x + (index % cols) * w, area.y + (index / cols) * h, w, h};
-}
-
-static bool button(Rectangle r, const char *label, bool active = false, bool enabled = true)
-{
-    bool hover = enabled && CheckCollisionPointRec(GetMousePosition(), r);
-    Color fill = active ? ACCENT : hover ? Color{85, 88, 96, 255} : BUTTON;
-    DrawRectangleRec(r, fill);
-    Color text = !enabled ? Color{110, 110, 115, 255} : active ? BLACK : RAYWHITE;
-    int w = MeasureText(label, 16);
-    DrawText(label, (int)(r.x + (r.width - w) / 2), (int)(r.y + (r.height - 16) / 2), 16, text);
-    return enabled && hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
 }
 
 static void draw_tile(const App &app, const Grid &grid, int index, const SegmentCache *segments)
@@ -103,6 +89,12 @@ static void draw_tabs(App &app)
         enter_live(app);
     if (button({104, 4, 90, 26}, "Playback", app.tab == Tab::Playback) && app.tab != Tab::Playback)
         enter_playback(app);
+
+    const float devices_x = GetScreenWidth() - 98.0f;
+    if (button({devices_x, 4, 90, 26}, "Devices"))
+        app.switch_device = true;
+    const char *name = g_device->info().name.c_str();
+    DrawText(name, (int)devices_x - 12 - MeasureText(name, 16), 9, 16, GRAY);
 }
 
 static void handle_tile_click(const App &app, Grid &grid)

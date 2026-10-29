@@ -5,4 +5,4 @@ Comment=Live view, playback and download for TVT-based network DVRs
 Exec=tvt-dvr-client
 Icon=tvt-dvr-client
 Categories=AudioVideo;Video;
-Terminal=true
+Terminal=false

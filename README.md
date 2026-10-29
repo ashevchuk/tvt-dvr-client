@@ -9,6 +9,7 @@ and company names belong to their owners and are used only to describe compatibi
 
 ## Features
 
+- **Devices**: a list of saved DVRs to pick from, with host, port and user name stored per device.
 - **Live view** in 1, 4, 9 or 16 tiles; the 1- and 4-up layouts use the main stream, denser grids
   use the sub stream. Audio of the selected camera.
 - **Playback** in 1 or 2x2 tiles (the device allows four playbacks at a time): calendar of
@@ -63,7 +64,20 @@ make test               # unit tests of the protocol layer and the audio decoder
 
 ## Run
 
-Credentials are read from the environment so they never appear in the process list or shell history:
+```sh
+./bin/tvt-dvr-client
+```
+
+Without arguments the client opens the device screen: pick a saved device or fill in the form for a
+new one, then press Connect or Enter. A successful connection saves the device; Delete removes it.
+The Devices button in the tab bar returns to the screen to switch devices.
+
+The password is asked on each connection. With "Remember password" ticked it is stored instead,
+unencrypted, in `$XDG_CONFIG_HOME/tvt-dvr-client/devices.conf` (`~/.config/tvt-dvr-client/devices.conf`
+by default), a file readable only by its owner.
+
+With a host on the command line the client connects at once and skips the screen. Credentials are
+then read from the environment so they never appear in the process list or shell history:
 
 ```sh
 export DVR_USER=... DVR_PASS=...
@@ -86,14 +100,13 @@ and later) is attached to each release:
 
 ```sh
 chmod +x tvt-dvr-client-*-x86_64.AppImage
-DVR_USER=... DVR_PASS=... ./tvt-dvr-client-*-x86_64.AppImage <host> [port]
+./tvt-dvr-client-*-x86_64.AppImage
 ```
 
 It carries a minimal LGPL build of FFmpeg and a static raylib, so the only things it needs from
 the system are the X11 client libraries, OpenGL and a sound server or ALSA. Running it directly
-needs FUSE 2; without it, start it with `--appimage-extract-and-run`. The client takes the host
-and the credentials from the command line and the environment, so launching it from a menu
-entry does nothing useful yet.
+needs FUSE 2; without it, start it with `--appimage-extract-and-run`. Started from a menu entry it
+opens the device screen, like the build from source.
 
 Releases are built by a GitHub Actions workflow when a `v*` tag is pushed, see
 [docs/releasing.md](docs/releasing.md). To build it yourself (Docker, network access):
