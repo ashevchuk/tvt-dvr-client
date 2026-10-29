@@ -17,12 +17,13 @@ BINARIES := bin/tvt-dvr-client bin/devicecheck bin/protocheck
 .PHONY: all test clean
 all: $(BINARIES)
 
-test: bin/test_wire bin/test_ima bin/test_text_buffer bin/test_device_store bin/test_tile_expansion
+test: bin/test_wire bin/test_ima bin/test_text_buffer bin/test_device_store bin/test_tile_expansion bin/test_double_click
 	bin/test_wire
 	bin/test_ima
 	bin/test_text_buffer
 	bin/test_device_store
 	bin/test_tile_expansion
+	bin/test_double_click
 
 bin/tvt-dvr-client: $(CLIENT_OBJS) $(DEVICE_OBJS) $(PROTO_OBJS) $(MEDIA_OBJS) | bin
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) $$(pkg-config $(PKG_CONFIG_FLAGS) --libs $(GUI_PKGS)) $(LDLIBS)
@@ -46,6 +47,9 @@ bin/test_device_store: tests/test_device_store.cpp $(OBJ)/client/device_store.o 
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 bin/test_tile_expansion: tests/test_tile_expansion.cpp | bin
+	$(CXX) $(CXXFLAGS) $^ -o $@
+
+bin/test_double_click: tests/test_double_click.cpp | bin
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 $(OBJ)/%.o: src/%.cpp

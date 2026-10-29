@@ -1,6 +1,7 @@
 #include "ui.h"
 
 #include "audio.h"
+#include "double_click.h"
 #include "theme.h"
 #include "widgets.h"
 
@@ -17,7 +18,6 @@ static const int PLAYBACK_LAYOUTS[] = {1, 4};
 // Sub streams (352x288) are the main stream's 928x576 field of view squeezed horizontally.
 static const float DISPLAY_ASPECT = 928.0f / 576.0f;
 static const double MIN_TIMELINE_SPAN = 120;
-static const double DOUBLE_CLICK_SECONDS = 0.4;
 static const Color RECORDED = {40, 150, 60, 255};
 static const Color SELECTION = {255, 150, 30, 110};
 static const Color CURSOR = {255, 255, 255, 255};
@@ -103,17 +103,13 @@ static void draw_tabs(App &app)
 // Returns true when the layout changed and the streams have to be rebuilt.
 static bool handle_tile_click(const App &app, Grid &grid)
 {
-    static double last_click_time = 0;
-    static int last_click_tile = -1;
+    static DoubleClick tile_click;
     if (!IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
         return false;
     for (int i = 0; i < grid.layout; i++) {
         if (!CheckCollisionPointRec(GetMousePosition(), tile_rect(app, grid, i)))
             continue;
-        const double now = GetTime();
-        const bool double_click = i == last_click_tile && now - last_click_time < DOUBLE_CLICK_SECONDS;
-        last_click_tile = double_click ? -1 : i;
-        last_click_time = now;
+        const bool double_click = tile_click.press(i, GetTime());
         grid.selected = i;
         if (double_click && grid.expansion.toggle(grid.layout, grid.selected, grid.camera, i))
             return true;

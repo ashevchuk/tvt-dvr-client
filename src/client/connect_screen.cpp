@@ -22,6 +22,10 @@ const int MAX_PORT = 65535;
 const int LIST_WIDTH = 300;
 const int ROW_HEIGHT = 44;
 const int LIST_TOP = 56;
+const int LIST_BOTTOM_MARGIN = 60;     // room for the "New device" button
+const int LIST_TEXT_RIGHT_MARGIN = 8;
+const int SCROLLBAR_WIDTH = 4;
+const double DELETE_CONFIRM_SECONDS = 3;
 const float FORM_X = 340;
 const float FORM_TOP = 90;
 const float FIELD_HEIGHT = 32;
@@ -60,6 +64,7 @@ void fill_form(ConnectScreen &s, int index)
     s.fields[ConnectScreen::PASSWORD].set(d.remember_password ? d.password : "");
     s.remember_password = d.remember_password;
     s.focus = index >= 0 && !d.remember_password ? ConnectScreen::PASSWORD : ConnectScreen::HOST;
+    s.delete_armed_until = 0;
 }
 
 bool reject(ConnectScreen &s, int field, const char *text)
@@ -134,6 +139,17 @@ std::unique_ptr<dvr::Device> finish_connect(ConnectScreen &s)
     return std::move(outcome.device);
 }
 
+// A device whose password is not stored cannot be connected to without asking for it first.
+void connect_from_list(ConnectScreen &s)
+{
+    if (s.fields[ConnectScreen::PASSWORD].empty() && !s.remember_password) {
+        s.focus = ConnectScreen::PASSWORD;
+        show_message(s, "Enter the password, then press Enter", false);
+        return;
+    }
+    start_connect(s);
+}
+
 void delete_selected(ConnectScreen &s)
 {
     int index = s.selected;
@@ -170,19 +186,44 @@ void draw_list(ConnectScreen &s)
     if (s.saved.devices.empty())
         DrawText("No saved devices", 16, LIST_TOP + 12, 16, GRAY);
 
+    const int visible = GetScreenHeight() - LIST_TOP - LIST_BOTTOM_MARGIN;
+    const int content = static_cast<int>(s.saved.devices.size()) * ROW_HEIGHT;
+    const float max_scroll = (float)std::max(0, content - visible);
+    const Rectangle list_area = {0, (float)LIST_TOP, (float)LIST_WIDTH, (float)visible};
+    const bool over_list = CheckCollisionPointRec(GetMousePosition(), list_area);
+    if (over_list)
+        s.list_scroll -= GetMouseWheelMove() * ROW_HEIGHT;
+    s.list_scroll = std::clamp(s.list_scroll, 0.0f, max_scroll);
+
     for (int i = 0; i < static_cast<int>(s.saved.devices.size()); i++) {
         const SavedDevice &d = s.saved.devices[i];
-        Rectangle row = {0, (float)(LIST_TOP + i * ROW_HEIGHT), (float)LIST_WIDTH, (float)ROW_HEIGHT};
+        const float row_y = LIST_TOP + i * ROW_HEIGHT - s.list_scroll;
+        const float clip_top = std::max(row_y, (float)LIST_TOP);
+        const float clip_bottom = std::min(row_y + ROW_HEIGHT, (float)(LIST_TOP + visible));
+        if (clip_bottom <= clip_top)
+            continue;
+        const Rectangle row = {0, row_y, (float)LIST_WIDTH, (float)ROW_HEIGHT};
+        BeginScissorMode(0, (int)clip_top, LIST_WIDTH, (int)(clip_bottom - clip_top));
         if (i == s.selected)
             DrawRectangleRec(row, ROW_HIGHLIGHT);
         if (i == s.saved.last_used)
-            DrawRectangle(0, (int)row.y, 4, ROW_HEIGHT, ACCENT);
-        BeginScissorMode(16, (int)row.y, LIST_WIDTH - 24, ROW_HEIGHT);
-        DrawText(d.name.c_str(), 16, (int)row.y + 6, 17, i == s.selected ? ACCENT : LIGHTGRAY);
-        DrawText(TextFormat("%s@%s:%d", d.user.c_str(), d.host.c_str(), d.port), 16, (int)row.y + 26, 13, GRAY);
+            DrawRectangle(0, (int)row_y, 4, ROW_HEIGHT, ACCENT);
         EndScissorMode();
-        if (!s.connecting && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), row))
+        BeginScissorMode(16, (int)clip_top, LIST_WIDTH - 16 - LIST_TEXT_RIGHT_MARGIN, (int)(clip_bottom - clip_top));
+        DrawText(d.name.c_str(), 16, (int)row_y + 6, 17, i == s.selected ? ACCENT : LIGHTGRAY);
+        DrawText(TextFormat("%s@%s:%d", d.user.c_str(), d.host.c_str(), d.port), 16, (int)row_y + 26, 13, GRAY);
+        EndScissorMode();
+        if (!s.connecting && over_list && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) &&
+            CheckCollisionPointRec(GetMousePosition(), row)) {
             fill_form(s, i);
+            if (s.row_click.press(i, GetTime()))
+                connect_from_list(s);
+        }
+    }
+    if (max_scroll > 0) {
+        const float bar_height = (float)visible * visible / content;
+        const float bar_top = LIST_TOP + s.list_scroll / max_scroll * (visible - bar_height);
+        DrawRectangle(LIST_WIDTH - SCROLLBAR_WIDTH, (int)bar_top, SCROLLBAR_WIDTH, (int)bar_height, Color{90, 94, 102, 255});
     }
 
     if (button({16, (float)GetScreenHeight() - 50, LIST_WIDTH - 32.0f, 34}, "New device", false, !s.connecting)) {
@@ -219,8 +260,14 @@ void draw_form(ConnectScreen &s)
 
     if (button({FORM_X, BUTTON_Y, 140, 38}, "Connect", true, !s.connecting))
         start_connect(s);
-    if (button({FORM_X + 150, BUTTON_Y, 110, 38}, "Delete", false, !s.connecting && s.selected >= 0))
-        delete_selected(s);
+    const bool delete_armed = s.delete_armed_until > GetTime();
+    if (button({FORM_X + 150, BUTTON_Y, 150, 38}, delete_armed ? "Confirm delete" : "Delete", false,
+               !s.connecting && s.selected >= 0)) {
+        if (delete_armed)
+            delete_selected(s);
+        else
+            s.delete_armed_until = GetTime() + DELETE_CONFIRM_SECONDS;
+    }
     if (!s.message.empty())
         DrawText(s.message.c_str(), (int)FORM_X, (int)BUTTON_Y + 54, 16, s.message_is_error ? ERROR_COLOR : LIGHTGRAY);
 }

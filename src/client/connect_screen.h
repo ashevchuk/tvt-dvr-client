@@ -6,6 +6,7 @@
 
 #include "device/device.h"
 #include "device_store.h"
+#include "double_click.h"
 #include "text_buffer.h"
 
 struct ConnectOutcome {
@@ -25,6 +26,9 @@ struct ConnectScreen {
     TextBuffer fields[FIELD_COUNT];
     bool remember_password = false;
     int focus = HOST;
+    float list_scroll = 0;            // pixels the device list is scrolled down
+    DoubleClick row_click;
+    double delete_armed_until = 0;    // Delete needs a second click before this time (GetTime())
 
     std::future<ConnectOutcome> attempt;
     bool connecting = false;
