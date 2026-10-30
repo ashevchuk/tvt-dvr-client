@@ -23,8 +23,10 @@ headers), which are under the zlib licence or in the public domain. The licence 
 
 ## miniaudio 0.11.25 (public domain / MIT No Attribution)
 
-The client also contains its own copy of miniaudio, `third_party/miniaudio/miniaudio.h`, for
-microphone capture. The licence text is in that file; the source is at <https://miniaud.io>.
+The client also contains its own copy of miniaudio for microphone capture. miniaudio is released
+into the public domain (Unlicense) with MIT No Attribution as an alternative, so no licence text
+has to accompany it; the source is at <https://miniaud.io> and in `third_party/miniaudio` of the
+client's repository.
 
 ## System libraries
 
