@@ -102,6 +102,8 @@ static void draw_tabs(App &app)
     if (button({104, 4, 90, 26}, "Playback", app.tab == Tab::Playback) && app.tab != Tab::Playback)
         enter_playback(app);
 
+    app.talk.button({204, 4, 90, 26});
+
     const float devices_x = GetScreenWidth() - 98.0f;
     if (button({devices_x, 4, 90, 26}, "Devices"))
         app.switch_device = true;

@@ -2,6 +2,7 @@
 
 #include "playback.h"
 #include "reconnect.h"
+#include "talk.h"
 
 enum class Tab { Live, Playback };
 
@@ -11,6 +12,7 @@ struct App {
     Grid live;
     Playback playback;
     bool switch_device = false;
+    Talk talk;
     // Declared last so that an attempt in progress is waited for before the streams are destroyed.
     Reconnector reconnect;
 };

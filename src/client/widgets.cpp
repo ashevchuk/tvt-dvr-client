@@ -12,15 +12,31 @@ static const int FIELD_FONT = 18;
 static const int FIELD_PADDING = 8;
 static const double CURSOR_BLINK_SECONDS = 1.0;
 
+static void draw_button(Rectangle r, const char *label, Color fill, Color text)
+{
+    DrawRectangleRec(r, fill);
+    int w = MeasureText(label, BUTTON_FONT);
+    DrawText(label, (int)(r.x + (r.width - w) / 2), (int)(r.y + (r.height - BUTTON_FONT) / 2), BUTTON_FONT, text);
+}
+
 bool button(Rectangle r, const char *label, bool active, bool enabled)
 {
     bool hover = enabled && CheckCollisionPointRec(GetMousePosition(), r);
     Color fill = active ? ACCENT : hover ? Color{85, 88, 96, 255} : BUTTON;
-    DrawRectangleRec(r, fill);
     Color text = !enabled ? Color{110, 110, 115, 255} : active ? BLACK : RAYWHITE;
-    int w = MeasureText(label, BUTTON_FONT);
-    DrawText(label, (int)(r.x + (r.width - w) / 2), (int)(r.y + (r.height - BUTTON_FONT) / 2), BUTTON_FONT, text);
+    draw_button(r, label, fill, text);
     return enabled && hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+}
+
+bool hold_button(Rectangle r, const char *label, bool &grabbed, bool lit)
+{
+    if (!IsMouseButtonDown(MOUSE_BUTTON_LEFT))
+        grabbed = false;
+    if (grabbed && !lit)
+        draw_button(r, label, PENDING, BLACK);
+    else if (button(r, label, lit))
+        grabbed = true;
+    return grabbed;
 }
 
 static bool key_typed(int key) { return IsKeyPressed(key) || IsKeyPressedRepeat(key); }
