@@ -20,7 +20,11 @@ constexpr uint32_t kCmdSearch = 0x0501;
 constexpr uint32_t kCmdPlayStart = 0x0502;
 constexpr uint32_t kCmdPlayStop = 0x0507;
 constexpr uint32_t kCmdPlayAck = 0x050B;
+constexpr uint32_t kCmdTalkStart = 0x0B01;
+constexpr uint32_t kCmdTalkData = 0x0B02;
+constexpr uint32_t kCmdTalkStop = 0x0B03;
 constexpr uint32_t kCmdLoginOk = 0x00010001;
+constexpr uint32_t kCmdTalkAccepted = 0x000B0001;
 constexpr uint32_t kCmdSearchReply = 0x00050001;
 constexpr uint32_t kCmdMedia = 0x0A000001;
 
@@ -28,6 +32,7 @@ constexpr uint32_t kFirstPlaybackSession = 0x0A;
 constexpr uint32_t kDownloadSession = 0x64;
 
 enum class Kind : uint32_t { Video = 1, Audio = 2, VideoFormat = 3, AudioFormat = 4, End = 9 };
+constexpr uint32_t kTalkAudioKind = 7;
 enum class Stream : int { Main = 0x20, Sub = 0x40 };
 
 struct Message {
@@ -64,6 +69,10 @@ std::vector<uint8_t> search_segments(int channel, uint32_t start, uint32_t stop)
 std::vector<uint8_t> play_start(uint32_t session, int channel, uint32_t start, uint32_t stop, bool download);
 std::vector<uint8_t> play_ack(uint32_t session, uint32_t sequence);
 std::vector<uint8_t> play_stop(uint32_t session);
+std::vector<uint8_t> talk_start();
+// `units` are whole 168-byte IMA units, see ima_decoder.h.
+std::vector<uint8_t> talk_data(const uint8_t *units, size_t size);
+std::vector<uint8_t> talk_stop();
 
 struct MediaFrame {
     Kind kind = Kind::Video;

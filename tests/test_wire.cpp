@@ -170,6 +170,28 @@ static void test_playback_requests()
     CHECK(play_stop(0x0c)[8] == 0x07);
 }
 
+static void test_talk_messages()
+{
+    CHECK(talk_start().size() == 8 + 16);
+    CHECK(talk_start()[8] == 0x01 && talk_start()[9] == 0x0b);
+    CHECK(talk_stop()[8] == 0x03 && talk_stop()[9] == 0x0b);
+
+    std::vector<uint8_t> units(840, 0xAB);
+    auto data = talk_data(units.data(), units.size());
+    CHECK(data.size() == 8 + 16 + kFrameHeaderBytes + 840);
+    CHECK(data[8] == 0x02 && data[9] == 0x0b);
+    const uint8_t *payload = data.data() + 24;
+    CHECK(payload[4] == 7 && payload[5] == 0);            // kind: talk audio
+    CHECK(payload[8] == (840 & 0xff) && payload[9] == (840 >> 8));
+    CHECK(payload[kFrameHeaderBytes - 1] == 0 && payload[kFrameHeaderBytes] == 0xAB);
+
+    Decoder decoder;
+    decoder.push(data.data(), data.size());
+    Message m;
+    CHECK(decoder.next(m));
+    CHECK(m.cmd == kCmdTalkData && m.payload.size() == kFrameHeaderBytes + 840);
+}
+
 // A real video-format frame header captured from a device, with a made-up payload after it.
 static void test_real_media_header()
 {
@@ -253,6 +275,7 @@ int main()
     test_login_layout();
     test_live_stream_requests();
     test_playback_requests();
+    test_talk_messages();
     test_real_media_header();
     test_media_rejects_short_or_unknown();
     test_login_reply_and_search_replies();

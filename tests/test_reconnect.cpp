@@ -48,6 +48,7 @@ public:
     const char *recording_extension() const override { return "mkv"; }
     std::unique_ptr<dvr::MediaSession> open_live(int, bool, dvr::FrameHandler) override { return nullptr; }
     std::unique_ptr<dvr::MediaSession> open_playback(int, time_t, time_t, dvr::FrameHandler) override { return nullptr; }
+    std::unique_ptr<dvr::TalkSession> open_talk() override { return nullptr; }
     std::vector<time_t> recorded_days() override { return {}; }
     std::vector<dvr::Segment> segments(int, time_t) override { return {}; }
     std::unique_ptr<dvr::Download> download(int, time_t, time_t, const std::string &) override { return nullptr; }

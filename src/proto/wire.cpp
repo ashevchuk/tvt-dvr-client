@@ -184,6 +184,25 @@ std::vector<uint8_t> play_stop(uint32_t session)
     return encode(kCmdPlayStop, payload);
 }
 
+std::vector<uint8_t> talk_start()
+{
+    return encode(kCmdTalkStart);
+}
+
+std::vector<uint8_t> talk_data(const uint8_t *units, size_t size)
+{
+    std::vector<uint8_t> payload;
+    put_words(payload, {0, kTalkAudioKind, static_cast<uint32_t>(size)});
+    payload.resize(kFrameHeaderBytes);
+    payload.insert(payload.end(), units, units + size);
+    return encode(kCmdTalkData, payload);
+}
+
+std::vector<uint8_t> talk_stop()
+{
+    return encode(kCmdTalkStop);
+}
+
 bool parse_media(const Message &message, MediaFrame &out)
 {
     if (message.cmd != kCmdMedia || message.payload.size() < kFrameHeaderBytes)

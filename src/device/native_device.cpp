@@ -297,6 +297,18 @@ private:
     std::thread pacer_;
 };
 
+class NativeTalk : public TalkSession {
+public:
+    explicit NativeTalk(std::unique_ptr<Connection> connection) : connection_(std::move(connection)) {}
+
+    ~NativeTalk() override { connection_->send(wire::talk_stop()); }
+
+    bool send(const uint8_t *units, size_t size) override { return connection_->send(wire::talk_data(units, size)); }
+
+private:
+    std::unique_ptr<Connection> connection_;
+};
+
 // A playback acknowledged without pacing, written to a file.
 class NativeDownload : public Download {
 public:
@@ -396,6 +408,16 @@ public:
         if (!connection)
             return nullptr;
         return std::make_unique<NativePlayback>(std::move(connection), channel, start, stop, std::move(handler));
+    }
+
+    std::unique_ptr<TalkSession> open_talk() override
+    {
+        std::string error;
+        auto connection = open_connection(error);
+        wire::Message reply;
+        if (!connection || !connection->request(wire::talk_start(), wire::kCmdTalkAccepted, reply, kRequestTimeoutMs))
+            return nullptr;
+        return std::make_unique<NativeTalk>(std::move(connection));
     }
 
     std::vector<time_t> recorded_days() override

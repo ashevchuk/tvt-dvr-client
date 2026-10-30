@@ -48,6 +48,15 @@ public:
     virtual void set_speed(int speed) = 0;      // 1, 2 or 4
 };
 
+// An open talk-back (intercom) channel to the device. Destroying it ends the talk session.
+class TalkSession {
+public:
+    virtual ~TalkSession() = default;
+    // Sends whole 168-byte IMA units (see ima_decoder.h). The device plays them as they arrive,
+    // so the caller supplies them in real time. False once the connection is lost.
+    virtual bool send(const uint8_t *units, size_t size) = 0;
+};
+
 class Download {
 public:
     virtual ~Download() = default;
@@ -66,6 +75,9 @@ public:
     virtual std::unique_ptr<MediaSession> open_live(int channel, bool main_stream, FrameHandler handler) = 0;
     // Plays recordings of one channel between two times. The first frames can predate `start`.
     virtual std::unique_ptr<MediaSession> open_playback(int channel, time_t start, time_t stop, FrameHandler handler) = 0;
+
+    // Opens a talk-back channel; nullptr if the device cannot be reached or refuses it.
+    virtual std::unique_ptr<TalkSession> open_talk() = 0;
 
     // Start of every day with recordings (the device may list a day twice).
     virtual std::vector<time_t> recorded_days() = 0;
