@@ -1,10 +1,14 @@
 #include <cstdio>
 #include <cstdlib>
+#include <algorithm>
+#include <cmath>
 #include <cstring>
 
 #include "media/ima_decoder.h"
+#include "media/ima_encoder.h"
 
 using dvr::ImaDecoder;
+using dvr::ImaEncoder;
 
 static int g_failures;
 
@@ -59,6 +63,29 @@ int main()
     std::vector<int16_t> none;
     decoder.decode(five.data(), 100, none);                      // shorter than a unit
     CHECK(none.empty());
+
+    // Round trip: a 440 Hz tone encoded in chunks of 1600 samples (the microphone's 200 ms) comes back
+    // from the decoder close to the original; the leftover of each chunk carries over to the next.
+    ImaEncoder encoder;
+    std::vector<int16_t> tone(8000);
+    for (size_t i = 0; i < tone.size(); i++)
+        tone[i] = static_cast<int16_t>(8000 * sin(2 * M_PI * 440 * i / dvr::kAudioSampleRate));
+    std::vector<uint8_t> units;
+    for (size_t off = 0; off < tone.size(); off += 1600)
+        encoder.encode(tone.data() + off, 1600, units);
+    const size_t blocks = tone.size() / ImaDecoder::kSamplesPerBlock;          // 24 whole blocks in 8000 samples
+    CHECK(units.size() == blocks * ImaDecoder::kUnitBytes);
+    for (size_t off = 0; off < units.size(); off += ImaDecoder::kUnitBytes)
+        CHECK(memcmp(units.data() + off, "\x00\x01\x52\x00", 4) == 0);
+    std::vector<int16_t> decoded;
+    decoder.decode(units.data(), units.size(), decoded);
+    CHECK(decoded.size() == blocks * ImaDecoder::kSamplesPerBlock);
+    int worst = 0;
+    // The first block starts at the smallest step and cannot follow a loud tone; later blocks carry
+    // the adapted step index in their header.
+    for (size_t i = ImaDecoder::kSamplesPerBlock; i < decoded.size(); i++)
+        worst = std::max(worst, std::abs(decoded[i] - tone[i]));
+    CHECK(worst < 800);                                          // 10 % of the amplitude; ADPCM is lossy
 
     if (g_failures) {
         fprintf(stderr, "%d check(s) failed\n", g_failures);

@@ -9,7 +9,7 @@ GUI_PKGS := raylib $(MEDIA_PKGS)
 OBJ := build
 
 PROTO_OBJS := $(OBJ)/proto/wire.o $(OBJ)/proto/connection.o
-MEDIA_OBJS := $(OBJ)/media/ima_decoder.o
+MEDIA_OBJS := $(OBJ)/media/ima_decoder.o $(OBJ)/media/ima_encoder.o
 DEVICE_OBJS := $(OBJ)/device/native_device.o $(OBJ)/device/recording_writer.o
 CLIENT_OBJS := $(patsubst src/client/%.cpp,$(OBJ)/client/%.o,$(wildcard src/client/*.cpp))
 BINARIES := bin/tvt-dvr-client bin/devicecheck bin/protocheck
