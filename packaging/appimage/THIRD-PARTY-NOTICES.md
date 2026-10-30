@@ -21,6 +21,11 @@ raylib is linked statically, together with the libraries it embeds (GLFW, miniau
 headers), which are under the zlib licence or in the public domain. The licence text is in
 `raylib-LICENSE`; the source is at <https://github.com/raysan5/raylib/tree/6.2>.
 
+## miniaudio 0.11.25 (public domain / MIT No Attribution)
+
+The client also contains its own copy of miniaudio, `third_party/miniaudio/miniaudio.h`, for
+microphone capture. The licence text is in that file; the source is at <https://miniaud.io>.
+
 ## System libraries
 
 The AppImage relies on the host for the C library, the X11 client libraries and OpenGL. Nothing

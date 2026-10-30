@@ -15,6 +15,7 @@ and company names belong to their owners and are used only to describe compatibi
 - **Playback** in 1 or 2x2 tiles (the device allows four playbacks at a time): calendar of
   recorded days, a zoomable 24-hour timeline per channel, pause, 1x/2x/4x speed, click-to-seek.
   Tiles are kept in sync by a master clock.
+- **Talk-back**: hold the Talk button to send the microphone to the device's audio output.
 - **Download** of a selected period into `~/Videos/dvr`: a Matroska file with the H.264 video and
   PCM audio, timestamped from the device clock.
 
@@ -95,6 +96,7 @@ export DVR_USER=... DVR_PASS=...
 | Playback calendar | click a day with recordings |
 | Timeline | left click seeks; wheel zooms; middle drag pans; right drag selects a period |
 | Download button | saves the selected period of the selected camera |
+| Talk button | hold the left mouse button on it to send the microphone to the device |
 | `F11` | toggle full screen |
 | `Esc` | leave full screen, or quit when the window is not full screen |
 
@@ -139,16 +141,17 @@ need its time constants adjusted for yours.
 ```
 src/proto/    the wire protocol: framing, messages, and a logged-in connection
 src/device/   the Device interface, its implementation on the protocol, the file writer
-src/media/    the audio decoder shared by the player and the file writer
-src/client/   the GUI client (stream decoding, playback logic, UI)
+src/media/    the audio decoder shared by the player and the file writer, and the encoder for talk-back
+src/client/   the GUI client (stream decoding, playback logic, microphone, UI)
 src/tools/    command-line checks of a device
 tools/        Python programs that use the protocol without the client, and the capture proxy
 tests/        unit tests
+third_party/  miniaudio, used for the microphone
 packaging/    the AppImage build
 docs/         the protocol and notes on how the device behaves
 ```
 
 ## License
 
-MIT, see [LICENSE](LICENSE). This applies to the code in this repository only; raylib and FFmpeg
-are covered by their own licenses.
+MIT, see [LICENSE](LICENSE). This applies to the code in this repository only; raylib, FFmpeg and
+miniaudio are covered by their own licenses.

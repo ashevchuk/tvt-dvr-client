@@ -130,7 +130,7 @@ is a 60-byte frame header (fifteen words) followed by `w2` bytes of data.
 | word | meaning |
 |---|---|
 | w0 | `1` on key frames and audio frames, `0` on other video frames |
-| w1 | kind: `1` video, `2` audio, `3` video format, `4` audio format, `9` end of data (no data, only in playback and downloads) |
+| w1 | kind: `1` video, `2` audio, `3` video format, `4` audio format, `9` end of data (no data, only in playback and downloads); `7` and `8` only on a talk-back session, see below |
 | w2 | length of the data after the header |
 | w3, w4 | width and height (video and video format only) |
 | w6 | channel number, counting from 0 |
@@ -244,8 +244,34 @@ pacing. A 30.5-second window arrived in 4.4 seconds (7x) and held exactly the sa
 frames as the AVI the vendor SDK produced for that window. The device sends the same media
 messages; muxing them into a file is up to the client. The stream ends with the kind 9 message.
 
+## Talk-back
+
+Talk-back sends audio from the client to the device, which plays it on its audio output. It
+works on a connection that has logged in; the client uses a separate connection for it.
+
+| message | direction | payload |
+|---|---|---|
+| `0x0b01` | to device | empty: start talking |
+| `0x000b0001` | from device | empty: accepted |
+| `0x0b02` | to device | one media-style message, see below |
+| `0x0b03` | to device | empty: stop; no reply |
+
+A `0x0b02` payload is a 60-byte frame header followed by the audio. In the header `w1 = 7` (kind:
+talk audio) and `w2` is the length of the audio; the other words are `0` and the device accepts
+that. The audio is IMA ADPCM in the same shape as live audio: 168-byte units of the header
+`00 01 52 00` and a 164-byte block (321 samples, 8 kHz mono). The client sends five units (840
+bytes, 200 ms) per message, in real time; the keepalive of the connection continues as usual.
+Messages with other numbers of units were not tried.
+
+After `0x000b0001` the device sends `0x0a000001` messages on the same connection: one with
+`w1 = 8` and 18 data bytes, a `WAVEFORMATEX` whose format tag is `0x11` (IMA ADPCM) with one
+channel, and then messages with `w1 = 7` carrying 840 bytes of audio in the same unit shape, about
+every 200 ms. What that audio contains was not examined. A reply refusing the request was not
+observed.
+
 ## Not yet captured
 
 Slow motion and reverse playback, what the device does when a session id or range is invalid,
 record types in the segment list, the error code of a rejected login, PTZ, configuration, alarm
-events, talk-back, and whether any of this differs between firmware versions.
+events, the content of the audio the device sends during talk-back, and whether any of this
+differs between firmware versions.
