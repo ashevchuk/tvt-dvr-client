@@ -21,7 +21,7 @@ and company names belong to their owners and are used only to describe compatibi
 
 ## Screenshots
 
-Live view in the 2x2 layout, four stairwell and hallway cameras:
+Live view in the 2x2 layout:
 
 ![Live view, four cameras](docs/screenshots/live.png)
 
